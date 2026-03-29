@@ -1026,7 +1026,6 @@ function AdminPanel({cfg,regs,giftCounts,saveCfg,nav,signOut,deleteReg,updateReg
     {label:"Total registros",val:regs.length,emoji:"👥",color:apc},
     ...cfg.asistira.map(a=>({label:a.label,val:regs.filter(r=>(r.asistiraLabel||"").trim()===a.label.trim()).length,emoji:"👤",color:a.color})),
     ...cfg.tipoRegalo.map(t=>({label:t.label,val:regs.filter(r=>r.tipoLabel===t.label).length,emoji:"🎁",color:t.color})),
-    {label:"Regalos asignados",val:regs.filter(r=>r.regalo).length,emoji:"✅",color:"#3DAB7A"}
   ];
   // Stats para sticky header: regalos
   const stickyGiftTotal=cfg.gifts.reduce((s,g)=>s+(parseInt(g.qty)||0),0);
@@ -1684,7 +1683,6 @@ function StatsTab({regs,cfg,giftCounts,setModal,deleteReg,updateReg,apc,addAgend
     {label:"Total registros",val:regs.length,emoji:"👥",color:apc},
     ...cfg.asistira.map(a=>({label:a.label,val:regs.filter(r=>(r.asistiraLabel||"").trim()===a.label.trim()).length,emoji:"👤",color:a.color})),
     ...cfg.tipoRegalo.map(t=>({label:t.label,val:regs.filter(r=>r.tipoLabel===t.label).length,emoji:"🎁",color:t.color})),
-    {label:"Regalos asignados",val:regs.filter(r=>r.regalo).length,emoji:"✅",color:"#3DAB7A"}
   ];
 
   const subTabs=[{id:"general",label:"📋 Lista general"},{id:"asistencia",label:"✅ Confirmación de asistencia"}];
