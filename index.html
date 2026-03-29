@@ -1,0 +1,2826 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Confirmación de Asistencia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // ══════════════════════════════════════════════════════════════════
+    // 🔥 CONFIGURA AQUÍ TUS DATOS DE FIREBASE (ver instrucciones abajo)
+    // ══════════════════════════════════════════════════════════════════
+    const firebaseConfig = {
+      apiKey: "AIzaSyCHEV2tl8p7g9BPfR2YHJUBNJE56fcvLY0",
+      authDomain: "rsvp-boda-66d42.firebaseapp.com",
+      projectId: "rsvp-boda-66d42",
+      storageBucket: "rsvp-boda-66d42.firebasestorage.app",
+      messagingSenderId: "956708132419",
+      appId: "1:956708132419:web:56cdbe1b63efd88271e6f6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    window.__firebase = {
+      db,
+      auth,
+      async signIn(email, password) {
+        return signInWithEmailAndPassword(auth, email, password);
+      },
+      async signOut() {
+        return signOut(auth);
+      },
+      onAuthChanged(cb) {
+        return onAuthStateChanged(auth, cb);
+      },
+      async changePassword(currentPassword, newPassword) {
+        const user = auth.currentUser;
+        if (!user) throw new Error("No hay sesión activa");
+        const cred = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, cred);
+        await updatePassword(user, newPassword);
+      },
+      async getCfg(defaultCfg) {
+        try {
+          const snap = await getDoc(doc(db, "rsvp", "config"));
+          return snap.exists() ? snap.data() : defaultCfg;
+        } catch { return defaultCfg; }
+      },
+      async saveCfg(cfg) {
+        try { await setDoc(doc(db, "rsvp", "config"), cfg); } catch(e) { console.error(e); }
+      },
+      async patchCfg(fields) {
+        try { await updateDoc(doc(db, "rsvp", "config"), fields); } catch(e) {
+          // If doc doesn't exist yet, create it
+          try { await setDoc(doc(db, "rsvp", "config"), fields, {merge:true}); } catch(e2) { console.error(e2); }
+        }
+      },
+      async getRegs() {
+        try {
+          const snap = await getDocs(collection(db, "registros"));
+          return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch { return []; }
+      },
+      async addReg(reg) {
+        try {
+          const docRef = await addDoc(collection(db, "registros"), reg);
+          return { id: docRef.id, ...reg };
+        } catch(e) { console.error(e); return null; }
+      },
+      async deleteReg(id) {
+        try { await deleteDoc(doc(db, "registros", id)); } catch(e) { console.error(e); }
+      },
+      async updateReg(id, data) {
+        try { await updateDoc(doc(db, "registros", id), data); } catch(e) { console.error(e); }
+      },
+      onRegsSnapshot(cb) {
+        return onSnapshot(collection(db, "registros"), snap => {
+          cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+      },
+      onCfgSnapshot(cb) {
+        return onSnapshot(doc(db, "rsvp", "config"), snap => {
+          if(snap.exists()) cb(snap.data());
+        });
+      },
+      async getAgendamientos() {
+        try {
+          const snap = await getDocs(collection(db, "agendamientos"));
+          return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch { return []; }
+      },
+      async addAgendamiento(ag) {
+        try {
+          const docRef = await addDoc(collection(db, "agendamientos"), ag);
+          return { id: docRef.id, ...ag };
+        } catch(e) { console.error(e); return null; }
+      },
+      async deleteAgendamiento(id) {
+        try { await deleteDoc(doc(db, "agendamientos", id)); } catch(e) { console.error("deleteAgendamiento error:",e); throw e; }
+      },
+      async updateAgendamiento(id, data) {
+        try { await updateDoc(doc(db, "agendamientos", id), data); } catch(e) { console.error("updateAgendamiento error:",e); throw e; }
+      },
+      onAgendamientosSnapshot(cb) {
+        return onSnapshot(collection(db, "agendamientos"), snap => {
+          cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+      }
+    };
+    window.__firebaseReady = true;
+    window.dispatchEvent(new Event("firebaseReady"));
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    input,textarea,select{max-width:100%;}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeInDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes scaleIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+    @keyframes scaleInFast{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+    @keyframes slideDown{from{opacity:0;max-height:0}to{opacity:1;max-height:400px}}
+    @keyframes slideRight{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes subtabIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes cardPop{from{opacity:0;transform:scale(.97) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    @keyframes highlightFade{0%{outline:3px solid rgba(123,108,246,.7);background-color:#EDE9FF;}60%{outline:3px solid rgba(123,108,246,.4);background-color:#EDE9FF;}100%{outline:3px solid rgba(123,108,246,0);background-color:transparent;}}
+    .reg-highlight{animation:highlightFade 1.4s ease forwards!important;border-radius:14px!important;}
+    @keyframes bellPulse{0%{transform:scale(1)}30%{transform:scale(1.25) rotate(-8deg)}60%{transform:scale(1.2) rotate(8deg)}100%{transform:scale(1)}}
+    .bell-pulse{animation:bellPulse .6s ease!important;}
+    .anim-fadein{animation:fadeIn .22s ease}
+    .anim-fadeinup{animation:fadeInUp .28s cubic-bezier(.22,.68,0,1.2)}
+    .anim-scalein{animation:scaleIn .22s cubic-bezier(.22,.68,0,1.1)}
+    .anim-subtab{animation:subtabIn .25s cubic-bezier(.22,.68,0,1.15)}
+    .anim-cardpop{animation:cardPop .28s cubic-bezier(.22,.68,0,1.2)}
+    button{transition:transform .15s ease,box-shadow .15s ease,background .2s ease,opacity .2s ease!important}
+    button:active{transform:scale(.97)!important}
+    .card-hover{transition:box-shadow .2s ease,transform .2s ease}
+    .card-hover:hover{box-shadow:0 8px 32px rgba(123,108,246,.13)!important;transform:translateY(-1px)}
+    .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 20px;}
+    html,body{min-height:100vh;font-family:'Plus Jakarta Sans',sans-serif;touch-action:pan-x pan-y;}
+    #root{min-height:100vh;}
+    ::-webkit-scrollbar{width:5px;}
+    ::-webkit-scrollbar-thumb{background:#D4CEEE;border-radius:3px;}
+  </style>
+  <script>
+    document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+    document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
+    document.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
+    document.addEventListener('touchmove',e=>{
+      if(e.touches&&e.touches.length>1){e.preventDefault();}
+      else if(e.scale&&e.scale!==1){e.preventDefault();}
+    },{passive:false});
+  </script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ─── CONSTANTS ─────────────────────────────────────────────────── */
+const mkId = () => Math.random().toString(36).substr(2,9);
+const GIFTS0 = ["Juego de Sabanas","Cortinas","Toallas","Toalla de mano","Licuadora","Tasas de Café","Juego de Cubiertos","Condimenteros","Juego de Cuchillos","Colador","Caldero mediano","Cucharón de arroz","Jarra de agua","Ollas","Sartenes","Rayador","Tabla de picar","Trapero y tanque","Escoba y pala","Abanico","Juego de Vasos de vidrio","Canasto de ropa","Portas de vidrio"];
+
+const DEF_CFG = {
+  title:"Confirmación de Asistencia",
+  subtitle:"¡Nos encantaría contar contigo! Por favor completa el formulario.",
+  primaryColor:"#7B6CF6", accentColor:"#F0A070", bgColor:"#FAF8FF", cardBg:"#FFFFFF",
+  formBorderColor:"#E4DFF5", formLabelColor:"#9B96B8", formInputColor:"#1A1535",
+  formTitleColor:"#1A1535", formSubtitleColor:"#8880AA", formBtnTextColor:"#FFFFFF",
+  landingEmoji:"🎊", landingTitleColor:"#1A1535", landingSubtitleColor:"#8880AA",
+  confirmEmoji:"🎉", confirmTitle:"¡Registro exitoso!",
+  confirmSubtitle:"Tu registro ha sido guardado correctamente.",
+  confirmNote:"Recuerda tomarle pantallazo a esta respuesta 📸",
+  confirmBg:"#FAF8FF", confirmCardBg:"#FFFFFF", confirmSummaryBg:"#F9F7FF",
+  confirmTitleColor:"#1A1535", confirmTextColor:"#8880AA",
+  confirmNoteColor:"#C05A20", confirmNoteBg:"#FFF3E8", confirmPrimaryColor:"#7B6CF6",
+  // Mensajes personalizados para cada opción de "Asistirá"
+  confirmMsgSi:"",
+  confirmMsgNo:"{{Nombre}}, Muchas gracias por notificarnos que no podrás asistir. Agradecemos muchisimo que te hayas tomado el tiempo de responder el formulario para ayudarnos con la organización. Aun asi, si cambias de parecer o cualquier cosa surge, avisanos y llena nuevamente el formulario. Saludos: Amir y Karen",
+  confirmMsgNoSeguro:"",
+  loginEmoji:"🔐", loginTitle:"Panel de Administrador",
+  loginSubtitle:"Ingresa tu contraseña para continuar",
+  loginBg:"#FAF8FF", loginCardBg:"#FFFFFF", loginTitleColor:"#1A1535",
+  loginSubtitleColor:"#8880AA", loginCircleColor:"#7B6CF6", loginBtnText:"Ingresar",
+  adminBg:"#F5F2FF", adminCardBg:"#FFFFFF", adminPrimaryColor:"#7B6CF6", adminAccentColor:"#F0A070",
+  adminTabEmojis:{registros:"📊",regalos:"🎁",opciones:"⚙️",diseno:"🎨",configuracion:"🔧"},
+  ejServiceId:"", ejTemplateId:"", ejPublicKey:"", ejReminderTemplateId:"", emailFromName:"Organizador del Evento",
+  giftLabelTotal:"Total disponibles", giftLabelEscogidos:"Total escogidos", giftLabelRestantes:"Restantes",
+  gifts: GIFTS0.map(n => ({id:mkId(),name:n,qty:1})),
+  asistira:[
+    {id:mkId(),label:"Sí",color:"#3DAB7A"},
+    {id:mkId(),label:"No",color:"#E55B5B"},
+  ],
+  tipoRegalo:[{id:mkId(),label:"Regalo",color:"#7B6CF6",showGift:true},{id:mkId(),label:"Sobre",color:"#F0A070",showGift:false}]
+};
+
+/* ─── FIREBASE HELPERS ───────────────────────────────────────────── */
+const waitFirebase = () => new Promise(resolve => {
+  if (window.__firebaseReady) { resolve(); return; }
+  window.addEventListener("firebaseReady", () => resolve(), { once: true });
+  setTimeout(resolve, 5000); // timeout fallback
+});
+
+const fStore = async (fb) => {
+  await waitFirebase();
+  if (window.__firebase) {
+    const remote = await window.__firebase.getCfg(fb);
+    // Always merge remote on top of defaults so new fields are never missing
+    return {...fb, ...remote};
+  }
+  return fb;
+};
+const tStore = async (v) => {
+  await waitFirebase();
+  if (window.__firebase) await window.__firebase.saveCfg(v);
+};
+
+/* ─── EMAIL ──────────────────────────────────────────────────────── */
+const sendEmailJS = async (reg, cfg) => {
+  if (!window.emailjs || !cfg.ejServiceId || !cfg.ejTemplateId || !cfg.ejPublicKey)
+    throw new Error("EmailJS no configurado");
+  window.emailjs.init(cfg.ejPublicKey);
+  return window.emailjs.send(cfg.ejServiceId, cfg.ejTemplateId, {
+    to_email:reg.email, to_name:reg.nombre, nombre:reg.nombre, email:reg.email,
+    asistira:reg.asistiraLabel||"—", tipo_regalo:reg.tipoLabel||"—",
+    regalo:reg.regaloNombre||"No aplica", event_title:cfg.title,
+    confirm_note:cfg.confirmNote, confirm_subtitle:cfg.confirmSubtitle,
+  });
+};
+
+/* ─── SEND REMINDER EMAIL ───────────────────────────────────────── */
+const sendReminderEmailJS = async (reg, cfg) => {
+  if (!window.emailjs || !cfg.ejServiceId || !cfg.ejPublicKey)
+    throw new Error("EmailJS no configurado");
+  const templateId = cfg.ejReminderTemplateId || cfg.ejTemplateId;
+  if (!templateId) throw new Error("Template ID no configurado");
+  window.emailjs.init(cfg.ejPublicKey);
+  return window.emailjs.send(cfg.ejServiceId, templateId, {
+    to_email:reg.email, to_name:reg.nombre, nombre:reg.nombre, email:reg.email,
+    asistira:reg.asistiraLabel||"—", tipo_regalo:reg.tipoLabel||"—",
+    regalo:reg.regaloNombre||"No aplica", event_title:cfg.title,
+  });
+};
+
+/* ─── SHARED STYLES ──────────────────────────────────────────────── */
+const inp = (bc="#E4DFF5", extra={}) => ({
+  width:"100%", padding:"12px 15px", border:`2px solid ${bc}`, borderRadius:13,
+  fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:15, outline:"none",
+  transition:"border-color .2s, box-shadow .2s", background:"#FFF",
+  boxSizing:"border-box", ...extra
+});
+const lbl = (color="#9B96B8") => ({
+  fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:11, fontWeight:800, color,
+  textTransform:"uppercase", letterSpacing:".07em", marginBottom:7, display:"block"
+});
+const cardSt = (bg="#FFF", extra={}) => ({
+  background:bg, borderRadius:20, padding:24,
+  boxShadow:"0 4px 20px rgba(123,108,246,.07)", border:"1px solid #EDE9F8",
+  marginBottom:16, ...extra
+});
+const ghostBtn = (color="#8880AA") => ({
+  background:"transparent", border:"1.5px solid #E4DFF5", color,
+  padding:"10px 18px", borderRadius:11, fontFamily:"Plus Jakarta Sans,sans-serif",
+  fontSize:14, fontWeight:700, cursor:"pointer", transition:"all .2s"
+});
+const dangerBtn = {
+  background:"transparent", border:"1.5px solid #FCCECE", color:"#E55B5B",
+  padding:"7px 12px", borderRadius:9, fontFamily:"Plus Jakarta Sans,sans-serif",
+  fontSize:13, fontWeight:700, cursor:"pointer"
+};
+
+/* ─── DROPDOWN ───────────────────────────────────────────────────── */
+function Dropdown({options,value,onChange,placeholder="Selecciona una opción",primaryColor="#7B6CF6",showQty=false}){
+  const [open,setOpen]=useState(false);
+  const [hov,setHov]=useState(null);
+  const ref=useRef(null);
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
+  const sel=options.find(o=>o.id===value);
+  return (
+    <div ref={ref} style={{position:"relative",userSelect:"none"}}>
+      <div onClick={()=>setOpen(p=>!p)} style={{padding:"12px 15px",border:`2px solid ${open?primaryColor:"#E4DFF5"}`,borderRadius:13,cursor:"pointer",background:"#FFF",display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:50,transition:"all .2s",boxShadow:open?`0 0 0 3px ${primaryColor}18`:"none"}}>
+        {sel?<span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:700,color:sel.color||"#333"}}>{sel.label}</span>:<span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,color:"#C4BEDB"}}>{placeholder}</span>}
+        <svg width={11} height={11} viewBox="0 0 12 12" style={{transform:open?"rotate(180deg)":"none",transition:"transform .2s",flexShrink:0,marginLeft:8}}>
+          <path d="M1 3l5 5 5-5" stroke={primaryColor} strokeWidth={2} fill="none" strokeLinecap="round"/>
+        </svg>
+      </div>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:"#FFF",border:`2px solid ${primaryColor}`,borderRadius:13,boxShadow:"0 12px 40px rgba(123,108,246,.16)",zIndex:9999,overflow:"hidden",maxHeight:290,overflowY:"auto",animation:"scaleIn .18s ease"}}>
+          {options.map((opt,i)=>{
+            const isHov=hov===opt.id&&!opt.exhausted;
+            return(
+              <div key={opt.id}
+                onMouseEnter={()=>setHov(opt.id)} onMouseLeave={()=>setHov(null)}
+                onClick={()=>{if(!opt.exhausted){onChange(opt.id);setOpen(false);}}}
+                style={{padding:"10px 14px",cursor:opt.exhausted?"not-allowed":"pointer",borderBottom:i<options.length-1?"1px solid #F3F0FB":"none",background:isHov?"#F0EDF8":value===opt.id?`${primaryColor}10`:"#FFF",borderRadius:isHov?8:0,margin:isHov?"2px 4px":"0",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"background .08s, border-radius .08s"}}>
+                <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:value===opt.id?700:opt.exhausted?400:500,color:opt.exhausted?"#C8C4D4":(opt.color||"#333"),textDecoration:opt.exhausted?"line-through":"none"}}>
+                  {opt.label}
+                </span>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {showQty&&opt.qty!==undefined&&(
+                    <span style={{fontSize:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontWeight:700,color:opt.exhausted?"#E55B5B":"#3DAB7A",background:opt.exhausted?"#FFF0F0":"#F0FFF7",padding:"2px 9px",borderRadius:20,border:`1px solid ${opt.exhausted?"#FCCECE":"#C3F0D6"}`}}>
+                      {opt.qty-opt.available}/{opt.qty} disp.
+                    </span>
+                  )}
+                  {opt.exhausted&&<span style={{fontSize:11,color:"#C4BEDB",fontFamily:"Plus Jakarta Sans,sans-serif"}}>Agotado</span>}
+                  {value===opt.id&&!opt.exhausted&&(
+                    <svg width={13} height={13} viewBox="0 0 14 14"><path d="M2 7l4 4 6-6" stroke={opt.color||primaryColor} strokeWidth={2.5} fill="none" strokeLinecap="round"/></svg>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ─── RESPUESTAS MODAL ───────────────────────────────────────────── */
+function RespuestasModal({regs,cfg,onClose}){
+  const pc=cfg.primaryColor||"#7B6CF6";
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16,animation:"fadeIn .2s ease"}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#FFF",borderRadius:24,padding:"28px 24px",maxWidth:500,width:"100%",maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(123,108,246,.22)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,color:"#1A1535"}}>👀 Respuestas de todos</h3>
+          <button onClick={onClose} style={{background:"#F5F2FF",border:"none",borderRadius:10,width:34,height:34,cursor:"pointer",fontSize:16,color:"#8880AA",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+        {regs.length===0?(
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",color:"#C4BEDB",textAlign:"center",padding:"32px 0"}}>Aún no hay respuestas registradas.</p>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {regs.map((r,i)=>(
+              <div key={r.id||i} style={{background:"#FDFBFF",borderRadius:14,padding:"14px 16px",border:"1px solid #EDE9F8"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:800,color:"#1A1535"}}>{r.nombre}</span>
+                  <span style={{padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:700,background:(r.asistiraColor||"#888")+"18",color:r.asistiraColor||"#888",whiteSpace:"nowrap",display:"inline-block"}}>Asistirá: {r.asistiraLabel||"—"}</span>
+                </div>
+                {r.tipoLabel&&<div style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:2}}>🎁 {r.tipoLabel}{r.regaloNombre?` · ${r.regaloNombre}`:""}</div>}
+                <div style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#C4BEDB"}}>{r.ts?new Date(r.ts).toLocaleDateString("es",{day:"2-digit",month:"short",year:"numeric"}):""}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} style={{background:`linear-gradient(135deg,${pc},${cfg.accentColor||"#F0A070"})`,color:"#FFF",border:"none",padding:"13px",borderRadius:13,width:"100%",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:800,cursor:"pointer",marginTop:18}}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CONFIRMATION SCREEN ────────────────────────────────────────── */
+function ConfirmScreen({reg,cfg,onNew,isModal=false,onClose}){
+  const [estat,setEstat]=useState("idle");
+  const c=cfg;
+
+  const [confirmResend,setConfirmResend]=useState(false);
+  const resend=async()=>{
+    setConfirmResend(false);
+    setEstat("sending");
+    try{await sendEmailJS(reg,cfg);setEstat("sent");setTimeout(()=>setEstat("idle"),3000);}
+    catch{setEstat("err");setTimeout(()=>setEstat("idle"),3000);}
+  };
+
+  // Detectar mensaje personalizado
+  let customMsg = "";
+  const getCustomMsg = () => {
+    // 1. Por asistiraId directo
+    if(reg.asistiraId && c[`confirmMsg_${reg.asistiraId}`])
+      return c[`confirmMsg_${reg.asistiraId}`];
+    // 2. Buscar en cfg.asistira la opción que coincide con el label actual
+    if(cfg.asistira && reg.asistiraLabel) {
+      const opt = cfg.asistira.find(a =>
+        a.label.trim() === (reg.asistiraLabel||"").trim()
+      );
+      if(opt && c[`confirmMsg_${opt.id}`])
+        return c[`confirmMsg_${opt.id}`];
+    }
+    // 3. Fallback por label hardcodeado (registros muy viejos)
+    if(reg.asistiraLabel==="No" && c.confirmMsgNo) return c.confirmMsgNo;
+    if(reg.asistiraLabel==="Sí" && c.confirmMsgSi) return c.confirmMsgSi;
+    if(reg.asistiraLabel==="No estoy seguro/a" && c.confirmMsgNoSeguro) return c.confirmMsgNoSeguro;
+    // 4. Buscar cualquier clave confirmMsg_ que exista y cuyo id corresponda a alguna opción con ese label
+    const allOpts = cfg.asistira || [];
+    for(const opt of allOpts) {
+      if((opt.label||"").trim() === (reg.asistiraLabel||"").trim()) {
+        const msg = c[`confirmMsg_${opt.id}`];
+        if(msg) return msg;
+      }
+    }
+    return "";
+  };
+  const rawMsg = getCustomMsg();
+  if(rawMsg) customMsg = rawMsg.replace(/\{\{Nombre\}\}/g, reg.nombre||"");
+
+  const rows=[
+    {label:"Nombre",val:reg.nombre},
+    {label:"Correo",val:reg.email},
+    {label:"¿Asistirá?",val:reg.asistiraLabel,color:reg.asistiraColor},
+    {label:"Tipo de regalo",val:reg.tipoLabel,color:reg.tipoColor},
+    ...(reg.regaloNombre?[{label:"Regalo escogido",val:reg.regaloNombre}]:[])
+  ];
+
+  const inner=(
+    <div style={{maxWidth:460,width:"100%"}}>
+      <div style={{textAlign:"center",marginBottom:22}}>
+        <div style={{fontSize:50,marginBottom:10}}>{c.confirmEmoji||"🎉"}</div>
+        <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:isModal?20:24,fontWeight:700,color:c.confirmTitleColor||"#1A1535",marginBottom:7}}>{c.confirmTitle}</h2>
+        {customMsg ? (
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,color:c.confirmTextColor||"#8880AA",lineHeight:1.7}}>{customMsg}</p>
+        ) : (
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,color:c.confirmTextColor||"#8880AA",lineHeight:1.7}}>
+            {c.confirmSubtitle} <strong style={{color:c.confirmTitleColor||"#1A1535"}}>{reg.nombre}</strong>.
+          </p>
+        )}
+      </div>
+
+      <div style={{background:c.confirmNoteBg||"#FFF3E8",borderRadius:12,padding:"13px 18px",marginBottom:18,border:`1.5px solid ${c.confirmNoteColor||"#F0A070"}40`}}>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,color:c.confirmNoteColor||"#C05A20",textAlign:"center",lineHeight:1.55}}>{c.confirmNote}</p>
+      </div>
+
+      <div style={{background:c.confirmSummaryBg||"#F9F7FF",borderRadius:13,padding:"16px 18px",marginBottom:18}}>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:800,color:"#9B96B8",textTransform:"uppercase",letterSpacing:".07em",marginBottom:12}}>Resumen de tu registro</p>
+        {rows.map(row=>(
+          <div key={row.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #EDE9F8"}}>
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#9B96B8",fontWeight:600}}>{row.label}</span>
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,color:row.color||c.confirmTitleColor||"#1A1535"}}>{row.val||"—"}</span>
+          </div>
+        ))}
+      </div>
+
+      {reg.email&&(
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#9B96B8",textAlign:"center",marginBottom:16}}>
+          {estat==="sent"?"✅ Correo enviado exitosamente":estat==="err"?"⚠️ No se pudo enviar":estat==="sending"?"Enviando correo...":cfg.ejPublicKey?"📧 Se envió un correo a tu email":""}
+        </p>
+      )}
+
+      {!isModal?(
+        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+          <button onClick={onNew} style={{background:c.confirmPrimaryColor||"#7B6CF6",color:"#FFF",border:"none",padding:"12px 22px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer"}}>+ Otra persona</button>
+        </div>
+      ):(
+        <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+          {confirmResend?(
+            <div style={{display:"flex",gap:8,width:"100%",justifyContent:"center"}}>
+              <button onClick={resend} style={{background:"#3DAB7A",color:"#FFF",border:"none",padding:"10px 18px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer"}}>✅ Sí, enviar</button>
+              <button onClick={()=>setConfirmResend(false)} style={ghostBtn()}>Cancelar</button>
+            </div>
+          ):(
+            <button onClick={()=>setConfirmResend(true)} disabled={estat!=="idle"} style={{background:estat==="sent"?"#3DAB7A":(c.confirmPrimaryColor||"#7B6CF6"),color:"#FFF",border:"none",padding:"11px 20px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",opacity:estat!=="idle"?.7:1}}>
+              {estat==="sending"?"Enviando...":estat==="sent"?"✅ Enviado":"📧 Reenviar correo"}
+            </button>
+          )}
+          {onClose&&<button onClick={onClose} style={ghostBtn()}>Cerrar</button>}
+        </div>
+      )}
+    </div>
+  );
+
+  if(isModal)return inner;
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:c.confirmBg||"#FAF8FF",padding:20}}>
+      {inner}
+    </div>
+  );
+}
+
+/* ─── LANDING ────────────────────────────────────────────────────── */
+function Landing({cfg,nav,regs}){
+  const [copied,setCopied]=useState("");
+  const [showResp,setShowResp]=useState(false);
+  const url=typeof window!=="undefined"?window.location.href.split("#")[0]:"";
+  const copy=(v,k)=>{navigator.clipboard?.writeText(v);setCopied(k);setTimeout(()=>setCopied(""),2500);};
+  const pc=cfg.primaryColor,ac=cfg.accentColor;
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20,background:cfg.bgColor,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"fixed",inset:0,backgroundImage:`radial-gradient(ellipse at 20% 30%, ${pc}18 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, ${ac}14 0%, transparent 55%)`,pointerEvents:"none"}}/>
+      <div style={{maxWidth:460,width:"100%",position:"relative"}}>
+        <div style={{textAlign:"center",marginBottom:34}}>
+          <div style={{width:82,height:82,background:`linear-gradient(135deg, ${pc}, ${ac})`,borderRadius:26,margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,boxShadow:`0 12px 32px ${pc}30`}}>{cfg.landingEmoji||"🎊"}</div>
+          <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:30,fontWeight:700,color:cfg.landingTitleColor||"#1A1535",marginBottom:10,lineHeight:1.2}}>{cfg.title}</h1>
+          <p style={{color:cfg.landingSubtitleColor||"#8880AA",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,lineHeight:1.65}}>{cfg.subtitle}</p>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <button onClick={()=>nav("form")} style={{background:`linear-gradient(135deg, ${pc}, ${ac})`,color:"#fff",border:"none",padding:"18px 24px",borderRadius:16,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:16,fontWeight:800,cursor:"pointer",width:"100%",boxShadow:`0 8px 24px ${pc}35`,transition:"all .2s",letterSpacing:".02em"}}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 14px 32px ${pc}45`;}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=`0 8px 24px ${pc}35`;}}>
+            📝 &nbsp;Ir al Formulario de Registro
+          </button>
+          {/* Botón para ver respuestas de otros */}
+          <button onClick={()=>setShowResp(true)} style={{background:"transparent",color:pc,border:`2px solid ${pc}`,padding:"14px 24px",borderRadius:16,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:700,cursor:"pointer",width:"100%",transition:"all .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background=`${pc}10`;}}
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+            👀 &nbsp;Ver respuestas ({regs.length})
+          </button>
+          <button onClick={()=>nav("admin")} style={{background:"transparent",color:"#8880AA",border:"2px solid #E4DFF5",padding:"14px 24px",borderRadius:16,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:700,cursor:"pointer",width:"100%",transition:"all .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=pc;e.currentTarget.style.color=pc;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="#E4DFF5";e.currentTarget.style.color="#8880AA";}}>
+            🔐 &nbsp;Panel de Administrador
+          </button>
+        </div>
+        <div style={{marginTop:26,background:"#F5F2FF",borderRadius:16,padding:18,border:"1px solid #E4DFF5"}}>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,fontWeight:800,color:"#8880AA",textTransform:"uppercase",letterSpacing:".07em",marginBottom:10}}>📤 Links para compartir</p>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#3DAB7A",fontWeight:700,marginBottom:12}}>✅ Quien abra el link irá directo al formulario</p>
+          {[
+            {label:"Link del formulario (compartir con invitados):",val:url+"#form",key:"form",color:pc},
+            {label:"Link del administrador (solo tú):",val:url+"#admin",key:"admin",color:ac}
+          ].map(({label,val,key,color})=>(
+            <div key={key} style={{marginBottom:key==="form"?12:0}}>
+              <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#AAA5C0",display:"block",marginBottom:4}}>{label}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <code style={{fontFamily:"monospace",fontSize:10,color,flex:1,wordBreak:"break-all",background:"#FFF",padding:"6px 10px",borderRadius:8,border:"1px solid #E4DFF5"}}>{val}</code>
+                <button onClick={()=>copy(val,key)} style={{background:copied===key?"#E8F8EF":"#FFF",border:`1px solid ${copied===key?"#3DAB7A":"#E4DFF5"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:copied===key?"#3DAB7A":"#8880AA",whiteSpace:"nowrap",fontWeight:700,transition:"all .2s"}}>
+                  {copied===key?"✓ Copiado":"Copiar"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {showResp&&<RespuestasModal regs={regs} cfg={cfg} onClose={()=>setShowResp(false)}/>}
+    </div>
+  );
+}
+
+/* ─── GUEST FORM ─────────────────────────────────────────────────── */
+function GuestForm({cfg,giftCounts,addReg,regs}){
+  const [nombre,setNombre]=useState("");
+  const [nameErr,setNameErr]=useState("");
+  const [email,setEmail]=useState("");
+  const [emailErr,setEmailErr]=useState("");
+  const [asistira,setAsistira]=useState("");
+  const [tipo,setTipo]=useState("");
+  const [regalo,setRegalo]=useState("");
+  const [doneReg,setDoneReg]=useState(null);
+  const [sending,setSending]=useState(false);
+  const [showResp,setShowResp]=useState(false);
+
+  const showGift=cfg.tipoRegalo.find(t=>t.id===tipo)?.showGift;
+
+  // Ordenar regalos: mayor disponibilidad primero, agotados al final
+  const rawGiftOpts=cfg.gifts.map(g=>{
+    const used=giftCounts[g.id]||0;
+    const available=Math.max(0,g.qty-used);
+    return{id:g.id,label:g.name,exhausted:available===0&&g.qty>0,color:"#2D2750",qty:g.qty,available};
+  });
+  const giftOpts=[
+    ...rawGiftOpts.filter(g=>!g.exhausted).sort((a,b)=>{
+      const usedA=a.qty-a.available, usedB=b.qty-b.available;
+      if(usedA===0&&usedB!==0)return -1;
+      if(usedB===0&&usedA!==0)return 1;
+      return usedA-usedB;
+    }),
+    ...rawGiftOpts.filter(g=>g.exhausted)
+  ];
+
+  const canSend=nombre.trim()&&!nameErr&&email.trim()&&!emailErr&&asistira&&tipo&&(!showGift||regalo);
+
+  const chkName=v=>{setNombre(v);setNameErr(v&&/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/.test(v)?"No se aceptan números o caracteres especiales, solo letras":"");};
+  const chkEmail=v=>{setEmail(v);setEmailErr(v&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)?"Ingresa un correo electrónico válido":"");};
+
+  const submit=async()=>{
+    if(!canSend||sending)return;
+    setSending(true);
+    const ao=cfg.asistira.find(a=>a.id===asistira);
+    const to=cfg.tipoRegalo.find(t=>t.id===tipo);
+    const go=cfg.gifts.find(g=>g.id===regalo);
+    const reg={
+      nombre:nombre.trim(),email:email.trim(),
+      asistiraLabel:ao?.label,asistiraColor:ao?.color,
+      tipoLabel:to?.label,tipoColor:to?.color,
+      regalo:showGift?regalo:null,regaloNombre:showGift?go?.name:null
+    };
+    const saved=await addReg(reg);
+    if(cfg.ejPublicKey&&cfg.ejServiceId&&cfg.ejTemplateId){
+      try{await sendEmailJS(reg,cfg);}catch{}
+    }
+    setSending(false);
+    setDoneReg(saved||reg);
+  };
+
+  if(doneReg)return(
+    <ConfirmScreen reg={doneReg} cfg={cfg} isModal={false}
+      onNew={()=>{setDoneReg(null);setNombre("");setEmail("");setNameErr("");setEmailErr("");setAsistira("");setTipo("");setRegalo("");}}/>
+  );
+
+  const pc=cfg.primaryColor,bc=cfg.formBorderColor||"#E4DFF5";
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px 16px",background:cfg.bgColor,animation:"fadeInUp .35s ease"}}>
+      <div style={{position:"fixed",inset:0,backgroundImage:`radial-gradient(ellipse at 10% 85%, ${pc}12 0%, transparent 55%), radial-gradient(ellipse at 90% 15%, ${cfg.accentColor}10 0%, transparent 55%)`,pointerEvents:"none"}}/>
+      <div style={{maxWidth:480,width:"100%",background:cfg.cardBg,borderRadius:24,padding:"34px 30px",boxShadow:"0 8px 40px rgba(123,108,246,.1)",position:"relative",zIndex:1}}>
+        {/* Sin botón "Volver" */}
+        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:24,fontWeight:700,color:cfg.formTitleColor||"#1A1535",marginBottom:6}}>{cfg.title}</h1>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,color:cfg.formSubtitleColor||"#8880AA",lineHeight:1.65,marginBottom:26}}>{cfg.subtitle}</p>
+
+        <div style={{display:"flex",flexDirection:"column",gap:18}}>
+          <div>
+            <label style={lbl(cfg.formLabelColor||"#9B96B8")}>Nombre completo</label>
+            <input value={nombre} onChange={e=>chkName(e.target.value)} placeholder="Escribe tu nombre completo"
+              style={{...inp(nameErr?"#E55B5B":bc),color:cfg.formInputColor||"#1A1535",boxShadow:nameErr?"0 0 0 3px #E55B5B18":"none"}}/>
+            {nameErr&&<p style={{color:"#E55B5B",fontSize:12,marginTop:5,fontFamily:"Plus Jakarta Sans,sans-serif",fontWeight:600}}>{nameErr}</p>}
+          </div>
+
+          <div>
+            <label style={lbl(cfg.formLabelColor||"#9B96B8")}>Correo electrónico</label>
+            <input value={email} onChange={e=>chkEmail(e.target.value)} type="email" placeholder="ejemplo@correo.com"
+              style={{...inp(emailErr?"#E55B5B":bc),color:cfg.formInputColor||"#1A1535",boxShadow:emailErr?"0 0 0 3px #E55B5B18":"none"}}/>
+            {emailErr&&<p style={{color:"#E55B5B",fontSize:12,marginTop:5,fontFamily:"Plus Jakarta Sans,sans-serif",fontWeight:600}}>{emailErr}</p>}
+          </div>
+
+          <div>
+            <label style={lbl(cfg.formLabelColor||"#9B96B8")}>¿Asistirá?</label>
+            <Dropdown options={cfg.asistira} value={asistira} onChange={setAsistira} primaryColor={pc}/>
+          </div>
+
+          <div>
+            <label style={lbl(cfg.formLabelColor||"#9B96B8")}>Tipo de regalo</label>
+            <Dropdown options={cfg.tipoRegalo} value={tipo} onChange={v=>{setTipo(v);setRegalo("");}} primaryColor={pc}/>
+          </div>
+
+          {showGift&&(
+            <div>
+              <label style={lbl(cfg.formLabelColor||"#9B96B8")}>Regalo</label>
+              <Dropdown options={giftOpts} value={regalo} onChange={setRegalo} primaryColor={pc} showQty/>
+            </div>
+          )}
+
+          <button onClick={submit} disabled={!canSend||sending} style={{
+            background:canSend?`linear-gradient(135deg, ${pc}, ${cfg.accentColor})`:"#EDE9F8",
+            color:canSend?(cfg.formBtnTextColor||"#FFF"):"#C4BEDB",
+            border:"none",padding:"17px 24px",borderRadius:14,width:"100%",
+            fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:16,fontWeight:800,
+            cursor:canSend?"pointer":"not-allowed",marginTop:4,
+            boxShadow:canSend?`0 6px 20px ${pc}35`:"none",transition:"all .2s"
+          }}>{sending?"Enviando...":"Enviar Registro"}</button>
+
+          {/* Botón ver respuestas de otros */}
+          <button onClick={()=>setShowResp(true)} style={{background:"transparent",border:`1.5px solid #E4DFF5`,color:"#8880AA",padding:"11px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=pc;e.currentTarget.style.color=pc;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="#E4DFF5";e.currentTarget.style.color="#8880AA";}}>
+            👀 Ver respuestas de otros ({regs.length})
+          </button>
+        </div>
+      </div>
+      {showResp&&<RespuestasModal regs={regs} cfg={cfg} onClose={()=>setShowResp(false)}/>}
+    </div>
+  );
+}
+
+/* ─── ADMIN LOGIN ────────────────────────────────────────────────── */
+function AdminLogin({cfg,nav}){
+  const [email,setEmail]=useState("");
+  const [pass,setPass]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+  const pc=cfg.loginCircleColor||"#7B6CF6";
+
+  const tryLogin=async(e)=>{
+    e&&e.preventDefault();
+    if(!email.trim()||!pass.trim()){setErr("Ingresa tu correo y contraseña");return;}
+    setLoading(true);setErr("");
+    try{
+      await window.__firebase.signIn(email.trim(),pass);
+      // onAuthStateChanged en App actualizará authed automáticamente
+    }catch(ex){
+      const code=ex.code||"";
+      if(code.includes("user-not-found")||code.includes("wrong-password")||code.includes("invalid-credential"))
+        setErr("Correo o contraseña incorrectos");
+      else if(code.includes("too-many-requests"))
+        setErr("Demasiados intentos. Intenta más tarde");
+      else if(code.includes("invalid-email"))
+        setErr("Correo no válido");
+      else
+        setErr("Error al iniciar sesión. Verifica tus datos");
+      setLoading(false);
+    }
+  };
+
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20,background:cfg.loginBg||"#FAF8FF"}}>
+      <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`}</style>
+      <div style={{maxWidth:360,width:"100%",background:cfg.loginCardBg||"#FFF",borderRadius:24,padding:"40px 32px",boxShadow:"0 8px 40px rgba(123,108,246,.12)",textAlign:"center"}}>
+        <div style={{width:74,height:74,background:`${pc}15`,borderRadius:22,margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,border:`2px solid ${pc}25`}}>
+          {cfg.loginEmoji||"🔐"}
+        </div>
+        <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,color:cfg.loginTitleColor||"#1A1535",marginBottom:6}}>{cfg.loginTitle||"Panel de Administrador"}</h2>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:cfg.loginSubtitleColor||"#8880AA",marginBottom:24}}>{cfg.loginSubtitle||"Ingresa con tu cuenta de administrador"}</p>
+        <div style={{display:"flex",flexDirection:"column",gap:14,textAlign:"left"}}>
+          <div>
+            <label style={lbl()}>Correo electrónico</label>
+            <input type="email" value={email} onChange={e=>{setEmail(e.target.value);setErr("");}}
+              placeholder="admin@ejemplo.com" autoComplete="email"
+              onKeyDown={e=>e.key==="Enter"&&tryLogin()}
+              style={{...inp(),width:"100%",color:"#1A1535"}}/>
+          </div>
+          <div>
+            <label style={lbl()}>Contraseña</label>
+            <input type="password" value={pass} onChange={e=>{setPass(e.target.value);setErr("");}}
+              placeholder="••••••••" autoComplete="current-password"
+              onKeyDown={e=>e.key==="Enter"&&tryLogin()}
+              style={{...inp(),width:"100%",color:"#1A1535"}}/>
+          </div>
+          {err&&<p style={{color:"#E55B5B",fontSize:13,fontFamily:"Plus Jakarta Sans,sans-serif",fontWeight:600,textAlign:"center",margin:0}}>{err}</p>}
+          <button onClick={tryLogin} disabled={loading} style={{background:loading?"#EDE9F8":`linear-gradient(135deg,${pc},${pc}BB)`,color:loading?"#C4BEDB":"#FFF",border:"none",padding:"14px",borderRadius:13,width:"100%",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:800,cursor:loading?"not-allowed":"pointer",boxShadow:loading?"none":`0 6px 20px ${pc}35`,marginTop:4}}>
+            {loading?"Verificando...":cfg.loginBtnText||"Ingresar"}
+          </button>
+        </div>
+        <button onClick={()=>nav("landing")} style={{background:"none",border:"none",cursor:"pointer",color:"#C4BEDB",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:600,marginTop:18,display:"block",width:"100%"}}>← Volver al inicio</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── UNSAVED ALERT MODAL ────────────────────────────────────────── */
+function UnsavedAlert({onStay,onLeave,apc}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:20}}>
+      <div style={{background:"#FFF",borderRadius:20,padding:"28px 26px",maxWidth:360,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+        <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
+        <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:19,color:"#1A1535",marginBottom:8}}>Cambios sin guardar</h3>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:22,lineHeight:1.6}}>Tienes cambios que no se han guardado. ¿Quieres salir de todas formas?</p>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onLeave} style={{background:"#E55B5B",color:"#FFF",border:"none",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>Salir sin guardar</button>
+          <button onClick={onStay} style={{...ghostBtn(),flex:1}}>Volver y guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── NOTIFICATION PANEL ────────────────────────────────────────── */
+function NotifPanel({regs,pendientes,onClose,onHighlightReg,onHighlightAg,apc,dismissedTs,onDismiss}){
+  const [section,setSection]=useState("registros");
+  const ref=useRef(null);
+
+  useEffect(()=>{
+    // Use pointerup so mobile taps inside the panel register first
+    const h=e=>{
+      if(ref.current&&!ref.current.contains(e.target)){
+        // Small delay so any click inside fires before close
+        setTimeout(onClose,50);
+      }
+    };
+    setTimeout(()=>document.addEventListener("pointerup",h),200);
+    return()=>document.removeEventListener("pointerup",h);
+  },[]);
+
+  const recent=[...regs].filter(r=>{
+    if(!r.ts)return false;
+    const d=new Date(r.ts).getTime();
+    return d>(dismissedTs||0)&&(Date.now()-d)<86400000*2;
+  }).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,10);
+
+  return(
+    <>
+      <style>{`
+        .notif-panel{position:fixed;right:8px;top:70px;width:min(340px,calc(100vw - 16px));background:#FFF;border-radius:18px;box-shadow:0 12px 48px rgba(123,108,246,.22);z-index:99999;overflow:hidden;border:1px solid #EDE9F8;animation:scaleIn .18s ease;}
+        @media(max-width:760px){.notif-panel{top:70px;bottom:auto;right:8px;left:8px;width:auto;border-radius:18px;}}
+      `}</style>
+    <div ref={ref} className="notif-panel">
+      {/* Header */}
+      <div style={{padding:"12px 16px",borderBottom:"1px solid #F0EDF8",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+        <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:15,color:"#1A1535",fontWeight:700}}>🔔 Notificaciones</span>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={onDismiss} title="Borrar todas las notificaciones" style={{background:"#FFF0F0",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:11,fontWeight:700,color:"#E55B5B",fontFamily:"Plus Jakarta Sans,sans-serif",whiteSpace:"nowrap"}}>
+            🗑 Borrar
+          </button>
+          <button onClick={onClose} style={{background:"#F5F2FF",border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:"#8880AA"}}>✕</button>
+        </div>
+      </div>
+      {/* Sub-tabs */}
+      <div style={{display:"flex",borderBottom:"1px solid #F0EDF8"}}>
+        {[{id:"registros",label:`Nuevos registros ${recent.length>0?`(${recent.length})`:""}`},{id:"internas",label:`Recordatorios ${pendientes.length>0?`(${pendientes.length})`:""}`}].map(s=>(
+          <button key={s.id} onClick={()=>setSection(s.id)} style={{flex:1,padding:"10px 8px",border:"none",cursor:"pointer",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:700,background:section===s.id?`${apc}10`:"#FFF",color:section===s.id?apc:"#8880AA",borderBottom:section===s.id?`2px solid ${apc}`:"2px solid transparent",transition:"all .2s"}}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      {/* Content */}
+      <div style={{maxHeight:320,overflowY:"auto"}}>
+        {section==="registros"&&(
+          recent.length===0?(
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#C4BEDB",textAlign:"center",padding:"24px 16px"}}>No hay registros recientes</p>
+          ):(
+            <div>
+              {recent.map(r=>(
+                <div key={r.id} onClick={()=>onHighlightReg(r.id)}
+                  style={{padding:"12px 16px",borderBottom:"1px solid #F5F2FE",cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#F5F2FF"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:`${apc}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>👤</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#1A1535",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.nombre}</p>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#8880AA"}}>{r.ts?new Date(r.ts).toLocaleDateString("es",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):""}</p>
+                  </div>
+                  <span style={{padding:"3px 8px",borderRadius:20,fontSize:10,fontWeight:700,background:(r.asistiraColor||"#888")+"18",color:r.asistiraColor||"#888",whiteSpace:"nowrap"}}>{r.asistiraLabel||"—"}</span>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+        {section==="internas"&&(
+          pendientes.length===0?(
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#C4BEDB",textAlign:"center",padding:"24px 16px"}}>No hay recordatorios pendientes</p>
+          ):(
+            <div>
+              {pendientes.map(ag=>(
+                <div key={ag.id} onClick={()=>onHighlightAg(ag.id)}
+                  style={{padding:"12px 16px",borderBottom:"1px solid #F5F2FE",cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background .15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#FFF8F0"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:"#FFF3E8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>⏰</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#1A1535",marginBottom:2}}>Recordatorio listo</p>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#8880AA"}}>{new Date(ag.fechaHora).toLocaleDateString("es",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})} · {ag.total||0} personas</p>
+                  </div>
+                  <span style={{fontSize:10,color:"#F0A070",fontFamily:"Plus Jakarta Sans,sans-serif",fontWeight:700,whiteSpace:"nowrap"}}>Ver →</span>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+    </>
+  );
+}
+
+/* ─── ADMIN PANEL ────────────────────────────────────────────────── */
+function AdminPanel({cfg,regs,giftCounts,saveCfg,nav,signOut,deleteReg,updateReg,agendamientos,addAgendamiento,deleteAgendamiento,updateAgendamiento}){
+  const [tab,setTab]=useState("registros");
+  const [modal,setModal]=useState(null);
+  const [pendingTab,setPendingTab]=useState(null);
+  const [tabDirty,setTabDirty]=useState(false);
+  const apc=cfg.adminPrimaryColor||"#7B6CF6";
+  const aac=cfg.adminAccentColor||"#F0A070";
+  const te=cfg.adminTabEmojis||{};
+  const tabs=[
+    {id:"registros",label:"Registros"},
+    {id:"regalos",label:"Regalos"},
+    {id:"opciones",label:"Opciones"},
+    {id:"diseno",label:"Diseño"},
+    {id:"configuracion",label:"Config."}
+  ];
+  // Agendamientos pendientes (fecha ya pasó o es hoy)
+  const now=new Date();
+  const pendientes=agendamientos.filter(ag=>{
+    if(ag.ejecutado)return false;
+    const dt=new Date(ag.fechaHora);
+    return dt<=now;
+  });
+
+  const [showNotifPanel,setShowNotifPanel]=useState(false);
+  const [highlightedReg,setHighlightedReg]=useState(null);
+  const [highlightedAg,setHighlightedAg]=useState(null);
+  const [dismissedTs,setDismissedTs]=useState(()=>parseInt(localStorage.getItem("notif-dismissed")||"0"));
+
+  // Sync dismissedTs when cfg changes (cross-device sync via Firestore)
+  useEffect(()=>{
+    if(cfg&&cfg.notifDismissedTs){
+      const remote=cfg.notifDismissedTs;
+      if(remote>dismissedTs){
+        setDismissedTs(remote);
+        localStorage.setItem("notif-dismissed",remote.toString());
+      }
+    }
+  },[cfg?.notifDismissedTs]);
+
+  const highlightReg=id=>{
+    setShowNotifPanel(false);
+    setHighlightedReg(id);
+    setTab("registros");
+    setTabDirty(false);
+    setTimeout(()=>setHighlightedReg(null),3000);
+  };
+  const highlightAg=id=>{
+    setShowNotifPanel(false);
+    setTab("configuracion");
+    setTabDirty(false);
+    setTimeout(()=>{
+      window.__goToAgendamiento&&window.__goToAgendamiento();
+      setHighlightedAg(id);
+      const tryScroll=(n=0)=>{
+        const el=document.getElementById(`ag-row-${id}`);
+        if(el){el.scrollIntoView({behavior:"smooth",block:"center"});}
+        else if(n<10){setTimeout(()=>tryScroll(n+1),120);}
+      };
+      setTimeout(()=>tryScroll(),200);
+      setTimeout(()=>setHighlightedAg(null),2200);
+    },200);
+  };
+
+  const tryChangeTab=id=>{
+    if(tabDirty&&id!==tab){setPendingTab(id);}
+    else{setTab(id);setTabDirty(false);}
+  };
+  const confirmLeave=()=>{setTab(pendingTab);setPendingTab(null);setTabDirty(false);};
+  const cancelLeave=()=>setPendingTab(null);
+
+  const newRegsCount=regs.filter(r=>{const d=new Date(r.ts).getTime();return d>dismissedTs&&(Date.now()-d)<86400000*2;}).length;
+  const totalBadge=pendientes.length+newRegsCount;
+  const prevBadgeRef=useRef(totalBadge);
+  const [bellPulse,setBellPulse]=useState(false);
+  useEffect(()=>{
+    if(totalBadge>prevBadgeRef.current){
+      setBellPulse(true);
+      setTimeout(()=>setBellPulse(false),800);
+    }
+    prevBadgeRef.current=totalBadge;
+  },[totalBadge]);
+
+  const tabDefs=[
+    {id:"registros",  label:"Registros", emoji:"📊"},
+    {id:"regalos",    label:"Regalos",   emoji:"🎁"},
+    {id:"opciones",   label:"Opciones",  emoji:"⚙️"},
+    {id:"diseno",     label:"Diseño",    emoji:"🎨"},
+    {id:"configuracion", label:"Config.", emoji:"🔧"}
+  ].map(t=>({...t,emoji:te[t.id]||t.emoji}));
+
+  return(
+    <div style={{minHeight:"100vh",background:cfg.adminBg||"#F5F2FF"}}>
+      {pendingTab&&<UnsavedAlert onStay={cancelLeave} onLeave={confirmLeave} apc={apc}/>}
+
+      <style>{`
+        .adm-root{display:flex;min-height:100vh;}
+        /* ── Floating sidebar ── */
+        .adm-sidebar{
+          width:220px;flex-shrink:0;
+          position:fixed;top:16px;left:12px;bottom:16px;
+          background:${cfg.adminCardBg||"#FFF"};
+          border-radius:20px;
+          border:1px solid #EDE9F8;
+          box-shadow:0 8px 32px rgba(123,108,246,.10);
+          display:flex;flex-direction:column;
+          overflow:hidden;z-index:50;
+        }
+        .adm-main{
+          margin-left:244px;
+          flex:1;min-width:0;
+          display:flex;flex-direction:column;
+        }
+        /* ── Topbar ── */
+        .adm-topbar{
+          padding:28px 28px 0;
+          display:flex;align-items:flex-start;justify-content:space-between;
+          position:relative;z-index:40;
+          background:transparent;
+        }
+        .adm-content{
+          flex:1;padding:20px 28px 30px;overflow-x:hidden;
+        }
+        /* ── Mobile: hide sidebar, show float bar ── */
+        .adm-floatbar{display:none;}
+        /* ── Reg table / cards toggle ── */
+        .reg-table-wrap{display:block;}
+        .reg-cards-wrap{display:none;}
+        @media(max-width:760px){
+          .reg-table-wrap{display:none;}
+          .reg-cards-wrap{display:flex;flex-direction:column;gap:10px;}
+          .adm-sidebar{display:none;}
+          .adm-main{margin-left:0;}
+          .adm-content{padding:14px 12px 110px;}
+          .adm-floatbar{
+            display:flex;
+            position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+            background:rgba(255,255,255,0.94);
+            backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+            border-radius:32px;
+            box-shadow:0 8px 32px rgba(123,108,246,.20),0 2px 8px rgba(0,0,0,.07);
+            border:1px solid rgba(228,223,245,0.8);
+            padding:5px 8px;gap:2px;z-index:1000;
+            width:calc(100vw - 28px);max-width:390px;
+          }
+        }
+      `}</style>
+
+      <div className="adm-root">
+        {/* ══ FLOATING SIDEBAR (desktop) ══ */}
+        <div className="adm-sidebar">
+          {/* Sidebar header */}
+          <div style={{padding:"18px 16px 12px",borderBottom:"1px solid #F0EDF8"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:38,height:38,borderRadius:12,background:`linear-gradient(135deg,${apc},${aac})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>💍</div>
+              <div>
+                <p style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:15,color:"#1A1535",fontWeight:700,lineHeight:1.1}}>Panel Admin</p>
+                <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#B0AABF",lineHeight:1}}>Amir &amp; Karen</p>
+              </div>
+            </div>
+          </div>
+          {/* Nav items */}
+          <div style={{padding:"12px 10px",flex:1,overflowY:"auto"}}>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:800,color:"#C4BEDB",textTransform:"uppercase",letterSpacing:".09em",marginBottom:6,paddingLeft:8}}>Menú</p>
+            {tabDefs.map(t=>{
+              const active=tab===t.id;
+              return(
+                <button key={t.id} onClick={()=>tryChangeTab(t.id)} style={{
+                  width:"100%",display:"flex",alignItems:"center",gap:10,
+                  padding:"10px 12px",borderRadius:12,border:"none",cursor:"pointer",
+                  marginBottom:2,textAlign:"left",transition:"all .18s",
+                  background:active?`linear-gradient(135deg,${apc},${apc}CC)`:"transparent",
+                  color:active?"#FFF":"#6B6490",
+                  fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:active?800:600,
+                  boxShadow:active?`0 4px 14px ${apc}35`:"none",
+                  transform:active?"translateX(2px)":"translateX(0)",
+                  letterSpacing:active?"-.01em":".005em",
+                }}>
+                  <span style={{fontSize:17,lineHeight:1}}>{t.emoji}</span>
+                  <span style={{flex:1}}>{t.label}</span>
+                  {active&&<span style={{width:6,height:6,borderRadius:"50%",background:"rgba(255,255,255,.7)",flexShrink:0}}/>}
+                </button>
+              );
+            })}
+          </div>
+          {/* Sidebar footer */}
+          <div style={{padding:"10px 10px 14px",borderTop:"1px solid #F0EDF8"}}>
+            <button onClick={()=>nav("form")} style={{width:"100%",background:`${apc}10`,color:apc,border:"none",padding:"9px 12px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:6,textAlign:"left",display:"flex",alignItems:"center",gap:8}}>
+              <span>📝</span><span>Ver Formulario</span>
+            </button>
+            <button onClick={async()=>{await signOut();nav("landing");}} style={{width:"100%",background:"transparent",border:"1.5px solid #EDE9F8",color:"#8880AA",padding:"9px 12px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:8}}>
+              <span>🚪</span><span>Cerrar sesión</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ══ MAIN AREA ══ */}
+        <div className="adm-main">
+          {/* ══ HEADER MODERNO ══ */}
+          <div className="adm-topbar">
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:6,background:`${apc}10`,border:`1px solid ${apc}25`,borderRadius:20,padding:"4px 12px",marginBottom:8}}>
+                <span style={{fontSize:13}}>{tabDefs.find(t=>t.id===tab)?.emoji}</span>
+                <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:800,color:apc,textTransform:"uppercase",letterSpacing:".1em"}}>{tabDefs.find(t=>t.id===tab)?.label}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:26,fontWeight:700,color:"#1A1535",lineHeight:1.15,margin:0}}>
+                  {tab==="registros"&&"Lista de Invitados"}
+                  {tab==="regalos"&&"Gestión de Regalos"}
+                  {tab==="opciones"&&"Opciones del Formulario"}
+                  {tab==="diseno"&&"Diseño y Colores"}
+                  {tab==="configuracion"&&"Configuración"}
+                </h1>
+                {tab==="registros"&&(
+                  <span style={{background:`${apc}12`,color:apc,border:`1px solid ${apc}28`,borderRadius:20,padding:"4px 13px",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:800,whiteSpace:"nowrap"}}>
+                    {regs.length} {regs.length===1?"invitado":"invitados"}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={{position:"relative",flexShrink:0,marginLeft:16}}>
+              <button onClick={()=>setShowNotifPanel(p=>!p)} className={bellPulse?"bell-pulse":""} style={{
+                background:showNotifPanel?`${apc}20`:`${apc}10`,
+                border:`1px solid ${showNotifPanel?`${apc}50`:`${apc}25`}`,
+                cursor:"pointer",fontSize:18,padding:"9px 11px",borderRadius:13,
+                position:"relative",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center"
+              }}>
+                🔔
+                {!showNotifPanel&&totalBadge>0&&(
+                  <span style={{position:"absolute",top:-5,right:-5,background:"#E55B5B",color:"#FFF",borderRadius:"50%",width:18,height:18,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Plus Jakarta Sans,sans-serif",border:"2px solid #F5F2FF"}}>{totalBadge}</span>
+                )}
+              </button>
+            </div>
+          </div>
+          <div style={{margin:"18px 28px 0",height:"1px",background:`linear-gradient(to right,${apc}30,transparent)`}}/>
+
+          {/* Content */}
+          <div className="adm-content">
+            <div key={tab} className="anim-fadeinup" style={{animationDuration:".28s"}}>
+              {tab==="registros"&&<StatsTab regs={regs} cfg={cfg} giftCounts={giftCounts} setModal={setModal} deleteReg={deleteReg} updateReg={updateReg} apc={apc} addAgendamiento={addAgendamiento} highlightedReg={highlightedReg}/>}
+              {tab==="regalos"&&<GiftsTab cfg={cfg} saveCfg={saveCfg} giftCounts={giftCounts} apc={apc} setTabDirty={setTabDirty}/>}
+              {tab==="opciones"&&<OptionsTab cfg={cfg} saveCfg={saveCfg} apc={apc} setTabDirty={setTabDirty}/>}
+              {tab==="diseno"&&<DesignTab cfg={cfg} saveCfg={saveCfg} apc={apc} setTabDirty={setTabDirty}/>}
+              {tab==="configuracion"&&<ConfigTab cfg={cfg} saveCfg={saveCfg} apc={apc} aac={aac} setTabDirty={setTabDirty} agendamientos={agendamientos} addAgendamiento={addAgendamiento} deleteAgendamiento={deleteAgendamiento} updateAgendamiento={updateAgendamiento} regs={regs} pendientes={pendientes} highlightedAg={highlightedAg}/>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══ FLOATING BOTTOM BAR (mobile) ══ */}
+      <div className="adm-floatbar">
+        {tabDefs.map(t=>{
+          const active=tab===t.id;
+          return(
+            <button key={t.id} onClick={()=>tryChangeTab(t.id)} style={{
+              flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+              justifyContent:"center",gap:2,padding:"7px 4px",border:"none",
+              cursor:"pointer",borderRadius:24,transition:"all .18s",
+              background:active?`${apc}15`:"transparent",
+              transform:active?"translateY(-1px)":"translateY(0)",
+              transition:"all .2s cubic-bezier(.22,.68,0,1.2)",
+            }}>
+              <span style={{fontSize:active?21:19,lineHeight:1,transition:"font-size .2s ease"}}>{t.emoji}</span>
+              <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:active?800:500,color:active?apc:"#9B96B8",lineHeight:1,whiteSpace:"nowrap",transition:"color .2s"}}>{t.label}</span>
+              {active&&<span style={{width:16,height:3,borderRadius:2,background:apc,marginTop:1,animation:"scaleInFast .2s ease"}}/>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ══ NOTIF PANEL — root level, works on mobile + desktop ══ */}
+      {showNotifPanel&&<NotifPanel regs={regs} pendientes={pendientes} onClose={()=>setShowNotifPanel(false)} onHighlightReg={highlightReg} onHighlightAg={highlightAg} apc={apc} dismissedTs={dismissedTs} onDismiss={()=>{const now=Date.now();localStorage.setItem("notif-dismissed",now.toString());setDismissedTs(now);if(window.__firebase)window.__firebase.patchCfg({notifDismissedTs:now});setShowNotifPanel(false);}}/>}
+
+      {modal&&(
+        <div onClick={e=>{if(e.target===e.currentTarget)setModal(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+          {modal.type==="viewConfirm"&&(
+            <div style={{background:cfg.confirmCardBg||"#FFF",borderRadius:22,padding:"30px 26px",maxWidth:460,width:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+              <ConfirmScreen reg={modal.data} cfg={cfg} isModal onClose={()=>setModal(null)}/>
+            </div>
+          )}
+          {modal.type==="editReg"&&(
+            <EditRegModal reg={modal.data} cfg={cfg} onSave={r=>{updateReg(r);setModal(null);}} onClose={()=>setModal(null)} giftCounts={giftCounts}/>
+          )}
+          {modal.type==="moveReg"&&(
+            <MoveRegModal reg={modal.data} cfg={cfg} onMove={(reg,newOpt)=>{updateReg({...reg,asistiraLabel:newOpt.label,asistiraColor:newOpt.color,asistiraId:newOpt.id});setModal(null);}} onClose={()=>setModal(null)} apc={apc}/>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── MOVE REG MODAL ─────────────────────────────────────────────── */
+function MoveRegModal({reg,cfg,onMove,onClose,apc}){
+  // Filtrar por id para no mostrar la opción actual (más confiable que por label)
+  const currentId=reg.asistiraId||cfg.asistira.find(a=>a.label.trim()===(reg.asistiraLabel||"").trim())?.id;
+  const otherOpts=cfg.asistira.filter(a=>a.id!==currentId);
+  return(
+    <div style={{background:"#FFF",borderRadius:22,padding:"28px 26px",maxWidth:380,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+      <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:8}}>Mover registro</h3>
+      <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:20}}>
+        <strong style={{color:"#1A1535"}}>{reg.nombre}</strong> está en <span style={{color:reg.asistiraColor,fontWeight:700}}>{reg.asistiraLabel}</span>. ¿A dónde moverlo?
+      </p>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {otherOpts.map(o=>(
+          <button key={o.id} onClick={()=>onMove(reg,o)} style={{background:`${o.color}15`,color:o.color,border:`2px solid ${o.color}40`,padding:"12px 20px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",textAlign:"left",transition:"all .2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background=`${o.color}25`;}}
+            onMouseLeave={e=>{e.currentTarget.style.background=`${o.color}15`;}}>
+            Mover a: {o.label}
+          </button>
+        ))}
+      </div>
+      <button onClick={onClose} style={{...ghostBtn(),width:"100%",marginTop:14}}>Cancelar</button>
+    </div>
+  );
+}
+
+/* ─── EDIT REGISTRATION MODAL ────────────────────────────────────── */
+function EditRegModal({reg,cfg,onSave,onClose,giftCounts}){
+  const [d,setD]=useState({...reg});
+  const pc=cfg.adminPrimaryColor||"#7B6CF6";
+  const giftOpts=cfg.gifts.map(g=>{
+    const used=(giftCounts[g.id]||0)-(reg.regalo===g.id?1:0);
+    const available=Math.max(0,g.qty-used);
+    return{id:g.id,label:g.name,exhausted:available===0&&g.qty>0,color:"#2D2750",qty:g.qty,available};
+  });
+  const showGift=cfg.tipoRegalo.find(t=>t.id===d.tipoId)?.showGift??(d.regalo!==null);
+
+  return(
+    <div style={{background:"#FFF",borderRadius:22,padding:"28px 26px",maxWidth:460,width:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+      <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:19,color:"#1A1535",marginBottom:20}}>Editar Registro</h3>
+      <div style={{display:"flex",flexDirection:"column",gap:15}}>
+        <div>
+          <label style={lbl()}>Nombre</label>
+          <input value={d.nombre} onChange={e=>setD({...d,nombre:e.target.value})} style={inp()}/>
+        </div>
+        <div>
+          <label style={lbl()}>Correo</label>
+          <input value={d.email||""} onChange={e=>setD({...d,email:e.target.value})} type="email" style={inp()}/>
+        </div>
+        {/* SIN campo "Asistirá" — se maneja desde Confirmación de Asistencia */}
+        <div>
+          <label style={lbl()}>Tipo de regalo</label>
+          <Dropdown options={cfg.tipoRegalo} value={cfg.tipoRegalo.find(t=>t.label===d.tipoLabel)?.id||""} onChange={id=>{const o=cfg.tipoRegalo.find(t=>t.id===id);setD({...d,tipoLabel:o?.label,tipoColor:o?.color,tipoId:id,regalo:null,regaloNombre:null});}} primaryColor={pc}/>
+        </div>
+        {showGift&&(
+          <div>
+            <label style={lbl()}>Regalo</label>
+            <Dropdown options={giftOpts} value={d.regalo||""} onChange={id=>{const o=cfg.gifts.find(g=>g.id===id);setD({...d,regalo:id,regaloNombre:o?.name});}} primaryColor={pc} showQty/>
+          </div>
+        )}
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:22}}>
+        <button onClick={()=>onSave(d)} style={{background:pc,color:"#FFF",border:"none",padding:"12px 22px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>Guardar cambios</button>
+        <button onClick={onClose} style={ghostBtn()}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── EXCEL EXPORT ──────────────────────────────────────────────── */
+function exportToExcelDirect(regs,filename="registros"){
+  if(!window.XLSX){alert("Error: librería Excel no cargada");return;}
+  const data=regs.map((r,i)=>({
+    "#":i+1,
+    "Nombre":r.nombre||"",
+    "Correo":r.email||"",
+    "¿Asistirá?":r.asistiraLabel||"",
+    "Tipo de regalo":r.tipoLabel||"",
+    "Regalo escogido":r.regaloNombre||"",
+    "Fecha":r.ts?new Date(r.ts).toLocaleDateString("es",{day:"2-digit",month:"short",year:"numeric"}):""
+  }));
+  const ws=XLSX.utils.json_to_sheet(data);
+  const cols=[{wch:5},{wch:25},{wch:30},{wch:18},{wch:18},{wch:30},{wch:14}];
+  ws["!cols"]=cols;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Registros");
+  XLSX.writeFile(wb,filename+".xlsx");
+}
+
+function ExcelExportBtn({regs,filename,label,style}){
+  const [confirm,setConfirm]=useState(false);
+  return(
+    <>
+      <button onClick={()=>setConfirm(true)} style={style||{background:"#1D6F42",color:"#FFF",border:"none",padding:"8px 16px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+        📊 {label||"Exportar Excel"}
+      </button>
+      {confirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:20}}>
+          <div style={{background:"#FFF",borderRadius:20,padding:"28px 26px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+            <div style={{fontSize:36,marginBottom:12}}>📊</div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:8}}>¿Exportar a Excel?</h3>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:22}}>Se descargará el archivo <strong>{filename||"registros"}.xlsx</strong> con {regs.length} registro(s).</p>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{exportToExcelDirect(regs,filename);setConfirm(false);}} style={{background:"#1D6F42",color:"#FFF",border:"none",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>✅ Sí, descargar</button>
+              <button onClick={()=>setConfirm(false)} style={{background:"transparent",border:"1.5px solid #E4DFF5",color:"#8880AA",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ─── SYNC REGS BUTTON ──────────────────────────────────────────── */
+function SyncRegsBtn({regs,cfg,apc}){
+  const [status,setStatus]=useState("idle"); // idle | syncing | done | error
+  const [count,setCount]=useState(0);
+
+  const sync=async()=>{
+    if(!window.__firebase){setStatus("error");return;}
+    setStatus("syncing");
+    let updated=0;
+    try{
+      for(const r of regs){
+        // Buscar la opción correcta: primero por asistiraId, luego por label
+        const opt=cfg.asistira.find(a=>a.id===r.asistiraId) ||
+                   cfg.asistira.find(a=>a.label.trim()===(r.asistiraLabel||"").trim());
+        if(opt){
+          const needsUpdate=r.asistiraLabel!==opt.label||r.asistiraColor!==opt.color||r.asistiraId!==opt.id;
+          if(needsUpdate){
+            await window.__firebase.updateReg(r.id,{
+              asistiraLabel:opt.label,
+              asistiraColor:opt.color,
+              asistiraId:opt.id
+            });
+            updated++;
+          }
+        }
+      }
+      setCount(updated);
+      setStatus("done");
+      setTimeout(()=>setStatus("idle"),4000);
+    }catch(e){
+      setStatus("error");
+      setTimeout(()=>setStatus("idle"),3000);
+    }
+  };
+
+  return(
+    <div style={{...cardSt(),marginBottom:16,background:"#F0F9FF",border:"1px solid #BAE0FF"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+        <div>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:800,color:"#0369A1",marginBottom:2}}>🔄 Sincronizar registros con opciones actuales</p>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#0369A1"}}>Si cambiaste los labels en Opciones, esto actualiza todos los registros existentes.</p>
+        </div>
+        <button onClick={sync} disabled={status==="syncing"} style={{background:status==="done"?"#3DAB7A":status==="error"?"#E55B5B":"#0369A1",color:"#FFF",border:"none",padding:"10px 18px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:status==="syncing"?"not-allowed":"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+          {status==="syncing"?"⏳ Sincronizando...":status==="done"?`✅ ${count} actualizados`:status==="error"?"❌ Error":"🔄 Sincronizar ahora"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── BULK REMINDER PANEL ───────────────────────────────────────── */
+function BulkReminderPanel({regs,cfg,addAgendamiento,apc,onClose}){
+  const [selected,setSelected]=useState(new Set(regs.map(r=>r.id)));
+  const [mode,setMode]=useState(null); // null | confirm | schedule
+  const [fecha,setFecha]=useState("");
+  const [hora,setHora]=useState("09:00");
+  const [sending,setSending]=useState(false);
+  const [done,setDone]=useState(false);
+
+  const allSelected=selected.size===regs.length;
+  const toggleAll=()=>setSelected(allSelected?new Set():new Set(regs.map(r=>r.id)));
+  const toggle=id=>setSelected(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
+
+  const selectedRegs=regs.filter(r=>selected.has(r.id));
+
+  const sendNow=async()=>{
+    setSending(true);
+    let ok=0,fail=0;
+    for(const r of selectedRegs){
+      if(!r.email)continue;
+      try{await sendReminderEmailJS(r,cfg);ok++;}catch{fail++;}
+    }
+    setSending(false);
+    setDone(true);
+    setTimeout(()=>{setDone(false);setMode(null);onClose();},3000);
+  };
+
+  const schedule=async()=>{
+    if(!fecha)return;
+    const fechaHora=`${fecha}T${hora}:00`;
+    const ag={
+      fechaHora,
+      registros:selectedRegs.map(r=>({id:r.id,nombre:r.nombre,email:r.email})),
+      total:selectedRegs.length,
+      creado:new Date().toISOString(),
+      ejecutado:false
+    };
+    await addAgendamiento(ag);
+    setMode(null);
+    onClose();
+  };
+
+  return(
+    <div style={{marginBottom:16}}>
+      {/* Barra de acciones */}
+      <div style={{background:`${apc}10`,borderRadius:14,padding:"14px 16px",marginBottom:12,border:`1.5px solid ${apc}30`,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:apc}}>
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{width:16,height:16,accentColor:apc}}/>
+          Seleccionar todos ({selected.size}/{regs.length})
+        </label>
+        <div style={{display:"flex",gap:8,marginLeft:"auto",flexWrap:"wrap"}}>
+          <button onClick={()=>setMode("confirm")} disabled={selected.size===0} style={{background:apc,color:"#FFF",border:"none",padding:"9px 16px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:selected.size===0?"not-allowed":"pointer",opacity:selected.size===0?.5:1}}>
+            📧 Reenviar recordatorio
+          </button>
+          <button onClick={()=>setMode("schedule")} disabled={selected.size===0} style={{background:"#F0A070",color:"#FFF",border:"none",padding:"9px 16px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:selected.size===0?"not-allowed":"pointer",opacity:selected.size===0?.5:1}}>
+            📅 Agendar reenvío
+          </button>
+          <button onClick={onClose} style={{...ghostBtn(),padding:"9px 14px"}}>Cancelar</button>
+        </div>
+      </div>
+
+      {/* Lista con checkboxes */}
+      <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:320,overflowY:"auto"}}>
+        {regs.map(r=>(
+          <label key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:selected.has(r.id)?"#F5F2FF":"#FDFBFF",borderRadius:11,border:`1px solid ${selected.has(r.id)?apc+"40":"#EDE9F8"}`,cursor:"pointer",transition:"all .15s"}}>
+            <input type="checkbox" checked={selected.has(r.id)} onChange={()=>toggle(r.id)} style={{width:16,height:16,accentColor:apc,flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,color:"#1A1535"}}>{r.nombre}</span>
+              <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginLeft:8}}>{r.email||"Sin correo"}</span>
+            </div>
+            <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:(r.asistiraColor||"#888")+"18",color:r.asistiraColor||"#888",whiteSpace:"nowrap"}}>{r.asistiraLabel||"—"}</span>
+          </label>
+        ))}
+      </div>
+
+      {/* Modal confirmar envío */}
+      {mode==="confirm"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:20}}>
+          <div style={{background:"#FFF",borderRadius:20,padding:"28px 26px",maxWidth:380,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+            <div style={{fontSize:40,marginBottom:12}}>📧</div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:8}}>{done?"¡Enviados!":"¿Enviar recordatorio?"}</h3>
+            {done?(
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#3DAB7A",marginBottom:20}}>✅ Correos enviados exitosamente</p>
+            ):(
+              <>
+                <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:22}}>Se enviará un correo recordatorio a <strong>{selectedRegs.filter(r=>r.email).length}</strong> persona(s) seleccionada(s).</p>
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={sendNow} disabled={sending} style={{background:apc,color:"#FFF",border:"none",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>
+                    {sending?"Enviando...":"✅ Sí, enviar"}
+                  </button>
+                  <button onClick={()=>setMode(null)} style={{...ghostBtn(),flex:1}}>Cancelar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal agendar */}
+      {mode==="schedule"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:"16px"}}>
+          <div style={{background:"#FFF",borderRadius:20,padding:"28px 24px",width:"100%",maxWidth:380,boxShadow:"0 20px 60px rgba(0,0,0,.2)",boxSizing:"border-box"}}>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:36,marginBottom:8}}>📅</div>
+              <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535"}}>Agendar reenvío</h3>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginTop:4}}>Para <strong>{selectedRegs.length}</strong> persona(s) seleccionada(s)</p>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <label style={lbl()}>Fecha</label>
+                <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} min={new Date().toISOString().split("T")[0]} style={{...inp(),fontSize:15,width:"100%",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={lbl()}>Hora</label>
+                <input type="time" value={hora} onChange={e=>setHora(e.target.value)} style={{...inp(),fontSize:15,width:"100%",boxSizing:"border-box"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <button onClick={schedule} disabled={!fecha} style={{background:"#F0A070",color:"#FFF",border:"none",padding:"14px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:fecha?"pointer":"not-allowed",flex:1,opacity:fecha?1:.5}}>✅ Aceptar</button>
+              <button onClick={()=>setMode(null)} style={{...ghostBtn(),flex:1,padding:"14px 20px"}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── STATS TAB ──────────────────────────────────────────────────── */
+function StatsTab({regs,cfg,giftCounts,setModal,deleteReg,updateReg,apc,addAgendamiento,highlightedReg}){
+  const [showReminder,setShowReminder]=useState(false);
+  const [searchGeneral,setSearchGeneral]=useState("");
+  const [searchAsist,setSearchAsist]=useState("");
+  const [confirmDel,setConfirmDel]=useState(null);
+  const [asistTab,setAsistTab]=useState("general");
+
+  // Scroll to highlighted reg AFTER React has rendered and committed to DOM
+  useEffect(()=>{
+    if(!highlightedReg)return;
+    const tryScroll=(n=0)=>{
+      const el=document.getElementById(`reg-row-${highlightedReg}`);
+      if(el){
+        // Find nearest scrollable ancestor (handles overflow-x:hidden → overflow-y:auto case)
+        const getScrollParent=(node)=>{
+          if(!node||node===document.documentElement)return null;
+          const {overflowY,overflowX}=window.getComputedStyle(node);
+          if(/(auto|scroll)/.test(overflowY)||/(auto|scroll)/.test(overflowX)){
+            if(node.scrollHeight>node.clientHeight||node.scrollWidth>node.clientWidth)return node;
+          }
+          return getScrollParent(node.parentElement);
+        };
+        const container=getScrollParent(el.parentElement);
+        if(container&&container!==document.documentElement){
+          // Scroll the actual scrollable container
+          const elRect=el.getBoundingClientRect();
+          const contRect=container.getBoundingClientRect();
+          const target=container.scrollTop+(elRect.top-contRect.top)-(container.clientHeight/2)+(el.offsetHeight/2);
+          container.scrollTo({top:Math.max(0,target),behavior:'smooth'});
+        } else {
+          // window is the scroll container
+          const rect=el.getBoundingClientRect();
+          window.scrollTo({top:Math.max(0,rect.top+window.scrollY-window.innerHeight/2+el.offsetHeight/2),behavior:'smooth'});
+        }
+      }
+      else if(n<20){setTimeout(()=>tryScroll(n+1),100);}
+    };
+    // Longer delay: iOS Safari scrolls-to-top after a focused element leaves DOM (panel close).
+    // We wait 520ms to run AFTER that browser-native scroll reset.
+    const t=setTimeout(()=>tryScroll(),520);
+    return()=>clearTimeout(t);
+  },[highlightedReg]);
+
+  const asistiraOpts=cfg.asistira; // Sí, No, No estoy seguro/a
+
+  const dynCards=[
+    {label:"Total registros",val:regs.length,emoji:"👥",color:apc},
+    ...cfg.asistira.map(a=>({label:a.label,val:regs.filter(r=>(r.asistiraLabel||"").trim()===a.label.trim()).length,emoji:"👤",color:a.color})),
+    ...cfg.tipoRegalo.map(t=>({label:t.label,val:regs.filter(r=>r.tipoLabel===t.label).length,emoji:"🎁",color:t.color})),
+    {label:"Regalos asignados",val:regs.filter(r=>r.regalo).length,emoji:"✅",color:"#3DAB7A"}
+  ];
+
+  const subTabs=[{id:"general",label:"📋 Lista general"},{id:"asistencia",label:"✅ Confirmación de asistencia"}];
+
+  const RegRow=({r,i,showMoveBtn=false})=>{
+    const bc=r.asistiraColor||"#C4BEDB";
+    const isHighlighted=highlightedReg===r.id;
+    const [hov,setHov]=useState(false);
+    const cols=`40px 1.2fr 1.4fr 112px 108px 1.2fr 72px ${showMoveBtn?"148px":"120px"}`;
+    const isActive=isHighlighted||hov;
+    return(
+      <div id={`reg-row-${r.id}`}
+        onMouseEnter={()=>setHov(true)}
+        onMouseLeave={()=>setHov(false)}
+        className={isHighlighted?"reg-highlight":""}
+        style={{
+          display:"grid",gridTemplateColumns:cols,alignItems:"center",gap:0,
+          background:isHighlighted?"":hov?`${apc}07`:"#FFF",
+          borderRadius:14,
+          borderTop:`1px solid ${isHighlighted?apc:hov?`${apc}35`:"#EDE9F8"}`,
+          borderRight:`1px solid ${isHighlighted?apc:hov?`${apc}35`:"#EDE9F8"}`,
+          borderBottom:`1px solid ${isHighlighted?apc:hov?`${apc}35`:"#EDE9F8"}`,
+          borderLeft:`4px solid ${bc}`,
+          boxShadow:isHighlighted
+            ?""
+            :hov
+              ?`0 6px 20px rgba(123,108,246,.12)`
+              :"0 2px 8px rgba(123,108,246,.06)",
+          marginBottom:8,
+          transform:hov&&!isHighlighted?"translateY(-2px)":"translateY(0)",
+          transition:"background .2s ease, box-shadow .2s ease, border-color .2s ease, transform .2s ease",
+          fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,overflow:"hidden",cursor:"default"
+        }}>
+        <div style={{padding:"13px 10px 13px 14px",color:"#C4BEDB",fontWeight:800,fontSize:11}}>{i+1}</div>
+        <div style={{padding:"13px 8px",fontWeight:800,color:hov?"#1A1535":"#1A1535",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.nombre}</div>
+        <div style={{padding:"13px 8px",color:"#8880AA",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.email||"—"}</div>
+        <div style={{padding:"13px 8px"}}>
+          <span style={{padding:"5px 11px",borderRadius:20,fontSize:11,fontWeight:700,background:bc+"22",color:bc,display:"inline-block",whiteSpace:"nowrap"}}>{r.asistiraLabel||"—"}</span>
+        </div>
+        <div style={{padding:"13px 8px"}}>
+          {r.tipoLabel?(
+            <span style={{padding:"4px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:(r.tipoColor||"#8880AA")+"18",color:r.tipoColor||"#8880AA",whiteSpace:"nowrap"}}>
+              🎁 {r.tipoLabel}
+            </span>
+          ):<span style={{color:"#C4BEDB"}}>—</span>}
+        </div>
+        <div style={{padding:"13px 8px",color:"#6A6580",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.regaloNombre||<span style={{color:"#C4BEDB"}}>—</span>}</div>
+        <div style={{padding:"13px 8px",color:"#C4BEDB",fontSize:11,whiteSpace:"nowrap"}}>{r.ts?new Date(r.ts).toLocaleDateString("es",{day:"2-digit",month:"short"}):"—"}</div>
+        <div style={{padding:"13px 14px 13px 8px",display:"flex",alignItems:"center"}}>
+          <div style={{display:"flex",gap:5,flexShrink:0}}>
+            <button title="Ver confirmación" onClick={()=>setModal({type:"viewConfirm",data:r})} style={{background:`${apc}15`,border:"none",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13,flexShrink:0}}>👁</button>
+            <button title="Editar" onClick={()=>setModal({type:"editReg",data:r})} style={{background:"#F0EDF8",border:"none",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13,flexShrink:0}}>✏️</button>
+            {showMoveBtn&&<button title="Mover" onClick={()=>setModal({type:"moveReg",data:r})} style={{background:"#FFF8E6",border:"none",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13,flexShrink:0}}>↕️</button>}
+            <button title="Eliminar" onClick={()=>setConfirmDel(r.id)} style={{background:"#FFF0F0",border:"none",borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:13,flexShrink:0}}>🗑</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Mobile card ── */
+  const RegCard=({r,i,showMoveBtn=false})=>{
+    const borderColor=r.asistiraColor||"#C4BEDB";
+    const isHighlighted=highlightedReg===r.id;
+    return(
+      <div id={`reg-row-${r.id}`}
+        onClick={()=>setModal({type:"viewConfirm",data:r})}
+        className={isHighlighted?"reg-highlight":""}
+        style={{
+          background:isHighlighted?"":"#FFF",
+          borderRadius:14,
+          border:`1px solid ${isHighlighted?apc:"#EDE9F8"}`,
+          borderLeft:`4px solid ${borderColor}`,
+          boxShadow:isHighlighted?"":"0 2px 8px rgba(123,108,246,.06)",
+          padding:"14px 14px 12px",
+          transition:"border-color .2s",
+          cursor:"pointer",
+          position:"relative"
+        }}>
+        {/* Row 1: número + nombre + badge asistirá */}
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:6}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,fontWeight:800,color:"#C4BEDB",flexShrink:0}}>#{i+1}</span>
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:800,color:"#1A1535",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.nombre}</span>
+          </div>
+          <span style={{padding:"4px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:borderColor+"22",color:borderColor,whiteSpace:"nowrap",flexShrink:0}}>{r.asistiraLabel||"—"}</span>
+        </div>
+
+        {/* Row 2: correo */}
+        {r.email&&(
+          <div style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            ✉️ {r.email}
+          </div>
+        )}
+
+        {/* Row 3: tipo + regalo */}
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+          {r.tipoLabel&&(
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:r.tipoColor||"#8880AA",fontWeight:700,background:(r.tipoColor||"#8880AA")+"18",padding:"3px 9px",borderRadius:20}}>
+              🎁 {r.tipoLabel}
+            </span>
+          )}
+          {r.regaloNombre&&(
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#6A6580",background:"#F5F2FF",padding:"3px 9px",borderRadius:20}}>
+              {r.regaloNombre}
+            </span>
+          )}
+        </div>
+
+        {/* Row 4: fecha + botones de acción */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
+          <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#C4BEDB",fontWeight:600}}>
+            {r.ts?new Date(r.ts).toLocaleDateString("es",{day:"2-digit",month:"short",year:"numeric"}):"—"}
+          </span>
+          <div style={{display:"flex",gap:6}} onClick={e=>e.stopPropagation()}>
+            <button title="Editar" onClick={()=>setModal({type:"editReg",data:r})}
+              style={{background:"#F0EDF8",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:14,fontWeight:700}}>✏️</button>
+            {showMoveBtn&&(
+              <button title="Mover" onClick={()=>setModal({type:"moveReg",data:r})}
+                style={{background:"#FFF8E6",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:14}}>↕️</button>
+            )}
+            <button title="Eliminar" onClick={()=>setConfirmDel(r.id)}
+              style={{background:"#FFF0F0",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:14}}>🗑</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const TableWrapper=({rows,showMove=false})=>{
+    if(rows.length===0)
+      return <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",color:"#C4BEDB",textAlign:"center",padding:"30px 0"}}>Sin registros en esta categoría</p>;
+    return(
+      <>
+        {/* Desktop: tarjetas en fila */}
+        <div className="reg-table-wrap">
+          {/* Header */}
+          <div style={{display:"grid",gridTemplateColumns:`40px 1.2fr 1.4fr 112px 108px 1.2fr 72px ${showMove?"148px":"120px"}`,alignItems:"center",gap:0,padding:"0 0 8px 0",marginBottom:4}}>
+            {["#","Nombre","Correo","Asistirá","Tipo","Regalo","Fecha","Acciones"].map((h,idx)=>(
+              <div key={h} style={{padding:idx===0?"0 8px 0 18px":"0 8px",color:"#9B96B8",fontWeight:800,fontSize:10,textTransform:"uppercase",letterSpacing:".06em",whiteSpace:"nowrap",fontFamily:"Plus Jakarta Sans,sans-serif"}}>{h}</div>
+            ))}
+          </div>
+          {/* Rows */}
+          <div style={{display:"flex",flexDirection:"column"}}>
+            {rows.map((r,i)=><RegRow key={r.id} r={r} i={i} showMoveBtn={showMove}/>)}
+          </div>
+        </div>
+        {/* Mobile: tarjetas */}
+        <div className="reg-cards-wrap">
+          {rows.map((r,i)=><RegCard key={r.id} r={r} i={i} showMoveBtn={showMove}/>)}
+        </div>
+      </>
+    );
+  };
+
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(140px,1fr))",gap:12,marginBottom:18}}>
+        {dynCards.map((c,i)=>(
+          <div key={i} className="anim-cardpop" style={{...cardSt("#FFF",{marginBottom:0}),textAlign:"center",padding:18,animationDelay:`${i*0.06}s`,animationFillMode:"both"}}>
+            <div style={{fontSize:20,marginBottom:7}}>{c.emoji}</div>
+            <div style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:30,fontWeight:800,color:c.color}}>{c.val}</div>
+            <div style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,color:"#8880AA",fontWeight:700,marginTop:4}}>{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Sub-tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:18,background:"#F0EDF8",borderRadius:14,padding:5,width:"fit-content",boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
+        {subTabs.map(s=>(
+          <button key={s.id} onClick={()=>setAsistTab(s.id)} style={{
+            padding:"8px 18px",borderRadius:10,border:"none",cursor:"pointer",
+            fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:asistTab===s.id?800:600,
+            background:asistTab===s.id?"#FFF":"transparent",
+            color:asistTab===s.id?apc:"#9B96B8",
+            boxShadow:asistTab===s.id?"0 2px 8px rgba(123,108,246,.14)":"none",
+            transition:"all .22s cubic-bezier(.22,.68,0,1.2)",
+            transform:asistTab===s.id?"scale(1.02)":"scale(1)",
+            letterSpacing:asistTab===s.id?".01em":".02em"
+          }}>{s.label}</button>
+        ))}
+      </div>
+
+      {asistTab==="general"&&(
+        <div style={cardSt()}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:10}}>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535"}}>Lista de Registros</h3>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <button onClick={()=>setShowReminder(true)} style={{background:"#F0A070",color:"#FFF",border:"none",padding:"8px 14px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                🔔 Recordatorio
+              </button>
+              <ExcelExportBtn regs={regs} filename="registros_completos" label="Exportar Excel"/>
+            </div>
+          </div>
+          {/* Buscador sticky */}
+          <div style={{position:"sticky",top:0,zIndex:10,background:"#FFF",paddingBottom:10,marginBottom:4}}>
+            <input value={searchGeneral} onChange={e=>setSearchGeneral(e.target.value)} placeholder="🔍 Buscar por nombre o correo..." style={{...inp()}}/>
+          </div>
+          {regs.length===0
+            ?<p style={{fontFamily:"Plus Jakarta Sans,sans-serif",color:"#C4BEDB",textAlign:"center",padding:"40px 0"}}>Aún no hay registros</p>
+            :<TableWrapper rows={regs.filter(r=>(r.nombre||"").toLowerCase().includes(searchGeneral.toLowerCase())||(r.email||"").toLowerCase().includes(searchGeneral.toLowerCase()))} showMove={false}/>
+          }
+        </div>
+      )}
+      {/* Modal de recordatorio como vista separada */}
+      {showReminder&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9998,padding:16}}>
+          <div style={{background:"#FFF",borderRadius:24,padding:"24px 20px",maxWidth:600,width:"100%",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,color:"#1A1535"}}>🔔 Enviar Recordatorio</h3>
+              <button onClick={()=>setShowReminder(false)} style={{background:"#F5F2FF",border:"none",borderRadius:10,width:34,height:34,cursor:"pointer",fontSize:16,color:"#8880AA"}}>✕</button>
+            </div>
+            <BulkReminderPanel regs={regs} cfg={cfg} addAgendamiento={addAgendamiento} apc={apc} onClose={()=>setShowReminder(false)}/>
+          </div>
+        </div>
+      )}
+
+      {asistTab==="asistencia"&&(
+        <div>
+          <div style={{position:"sticky",top:0,zIndex:10,background:cfg.adminBg||"#F5F2FF",paddingBottom:10,marginBottom:4}}>
+            <input value={searchAsist} onChange={e=>setSearchAsist(e.target.value)} placeholder="🔍 Buscar por nombre o correo..." style={{...inp()}}/>
+          </div>
+          {(()=>{
+            const q=searchAsist.toLowerCase();
+            const filterRegs=arr=>q?arr.filter(r=>(r.nombre||"").toLowerCase().includes(q)||(r.email||"").toLowerCase().includes(q)):arr;
+            const allLabels=cfg.asistira.map(a=>a.label.trim());
+            const allIds=cfg.asistira.map(a=>a.id);
+            const getOpt=(r)=>cfg.asistira.find(a=>
+              a.id===r.asistiraId ||
+              (a.label.trim()===(r.asistiraLabel||"").trim())
+            );
+            const huerfanos=filterRegs(regs.filter(r=>!getOpt(r)));
+            return(
+              <>
+                {cfg.asistira.map(opt=>{
+                  const filtered=filterRegs(regs.filter(r=>{
+                    if(r.asistiraId) return r.asistiraId===opt.id;
+                    return (r.asistiraLabel||"").trim()===opt.label.trim();
+                  }));
+                  return(
+                    <div key={opt.id} style={{...cardSt(),marginBottom:16}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+                        <span style={{width:12,height:12,borderRadius:"50%",background:opt.color,flexShrink:0,display:"inline-block"}}/>
+                        <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:16,color:"#1A1535"}}>{opt.label}</h3>
+                        <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",fontWeight:700,background:"#F5F2FF",padding:"2px 10px",borderRadius:20}}>{filtered.length} personas</span>
+                        <ExcelExportBtn regs={filtered} filename={"asistencia_"+opt.label.replace(/\s/g,"_")} label="Excel" style={{marginLeft:"auto",background:"#1D6F42",color:"#FFF",border:"none",padding:"6px 12px",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:700,cursor:"pointer"}}/>
+                      </div>
+                      <TableWrapper rows={filtered} showMove={true}/>
+                    </div>
+                  );
+                })}
+                {huerfanos.length>0&&(
+                  <div style={{...cardSt(),marginBottom:16,border:"2px dashed #F0A070"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+                      <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:16,color:"#C05A20"}}>⚠️ Sin categoría ({huerfanos.length})</h3>
+                    </div>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:12}}>Estos registros tienen un label anterior. Usa el botón "Sincronizar" de arriba para corregirlos automáticamente, o muévelos con ↕️.</p>
+                    <TableWrapper rows={huerfanos} showMove={true}/>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
+          <div style={{background:"#FFF",borderRadius:18,padding:"28px 26px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+            <div style={{fontSize:36,marginBottom:12}}>🗑</div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:8}}>¿Eliminar registro?</h3>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:22}}>Esta acción no se puede deshacer.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{deleteReg(confirmDel);setConfirmDel(null);}} style={{background:"#E55B5B",color:"#FFF",border:"none",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>Eliminar</button>
+              <button onClick={()=>setConfirmDel(null)} style={{...ghostBtn(),flex:1}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── GIFTS TAB ──────────────────────────────────────────────────── */
+function GiftsTab({cfg,saveCfg,giftCounts,apc,setTabDirty}){
+  const [newName,setNewName]=useState("");
+  const [confirmDel,setConfirmDel]=useState(null);
+  const [search,setSearch]=useState("");
+  const [sortAZ,setSortAZ]=useState(false);
+  const upQty=(id,qty)=>saveCfg({...cfg,gifts:cfg.gifts.map(g=>g.id===id?{...g,qty:Math.max(0,parseInt(qty)||0)}:g)});
+  const upName=(id,name)=>saveCfg({...cfg,gifts:cfg.gifts.map(g=>g.id===id?{...g,name}:g)});
+  const remove=id=>saveCfg({...cfg,gifts:cfg.gifts.filter(g=>g.id!==id)});
+  const add=()=>{if(!newName.trim())return;saveCfg({...cfg,gifts:[{id:mkId(),name:newName.trim(),qty:1},...cfg.gifts]});setNewName("");};
+  const totalQty=cfg.gifts.reduce((s,g)=>s+(parseInt(g.qty)||0),0);
+  const totalUsed=cfg.gifts.reduce((s,g)=>s+(giftCounts[g.id]||0),0);
+  let filtered=cfg.gifts.filter(g=>g.name.toLowerCase().includes(search.toLowerCase()));
+  if(sortAZ) filtered=[...filtered].sort((a,b)=>a.name.localeCompare(b.name,"es"));
+  return(
+    <div style={cardSt()}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
+        <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535"}}>Gestión de Regalos</h3>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",fontWeight:600}}>{cfg.gifts.length} items</span>
+          <button onClick={()=>setSortAZ(p=>!p)} style={{background:sortAZ?apc:"#F5F2FF",color:sortAZ?"#FFF":apc,border:"none",padding:"6px 12px",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            {sortAZ?"✓ A→Z":"A→Z"}
+          </button>
+        </div>
+      </div>
+      {/* Totales */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        <div style={{flex:1,background:"#F0FFF7",borderRadius:12,padding:"12px 16px",border:"1px solid #C3F0D6",minWidth:120}}>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:800,color:"#3DAB7A",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>{cfg.giftLabelTotal||"Total disponibles"}</p>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:24,fontWeight:800,color:"#3DAB7A"}}>{totalQty}</p>
+        </div>
+        <div style={{flex:1,background:"#F5F2FF",borderRadius:12,padding:"12px 16px",border:"1px solid #E4DFF5",minWidth:120}}>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:800,color:apc,textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>{cfg.giftLabelEscogidos||"Total escogidos"}</p>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:24,fontWeight:800,color:apc}}>{totalUsed}</p>
+        </div>
+        <div style={{flex:1,background:"#FFF8F0",borderRadius:12,padding:"12px 16px",border:"1px solid #FED7AA",minWidth:120}}>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:10,fontWeight:800,color:"#F0A070",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4}}>{cfg.giftLabelRestantes||"Restantes"}</p>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:24,fontWeight:800,color:"#F0A070"}}>{totalQty-totalUsed}</p>
+        </div>
+      </div>
+      {/* Buscador */}
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Buscar regalo..." style={{...inp(),marginBottom:12}}/>
+      <div style={{display:"flex",gap:10,marginBottom:18}}>
+        <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();add();}}} placeholder="Nombre del nuevo regalo..." style={{...inp(),flex:1}}/>
+        <button onClick={add} style={{background:apc,color:"#FFF",border:"none",padding:"12px 18px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>+ Agregar</button>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {filtered.map(g=>{
+          const used=giftCounts[g.id]||0,exh=used>=g.qty&&g.qty>0;
+          return(
+            <div key={g.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",background:exh?"#FFF5F5":"#FDFBFF",borderRadius:11,border:`1px solid ${exh?"#F8D7D7":"#EDE9F8"}`}}>
+              <DraftInput value={g.name} onChange={v=>upName(g.id,v)} style={{flex:1,border:"none",background:"transparent",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:600,color:"#1A1535",outline:"none"}}/>
+              <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:800,color:used>0?(exh?"#E55B5B":"#3DAB7A"):"#C4BEDB",minWidth:42,textAlign:"right"}}>{used}/{g.qty}</span>
+              <input type="number" value={g.qty} min={0} onChange={e=>upQty(g.id,e.target.value)} style={{width:60,padding:"6px 8px",textAlign:"center",border:"1.5px solid #E4DFF5",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,outline:"none"}}/>
+              <button onClick={()=>setConfirmDel(g.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#E55B5B",fontSize:16,flexShrink:0}}>✕</button>
+            </div>
+          );
+        })}
+        {filtered.length===0&&<p style={{fontFamily:"Plus Jakarta Sans,sans-serif",color:"#C4BEDB",textAlign:"center",padding:"20px 0"}}>No se encontraron resultados</p>}
+      </div>
+      <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginTop:12}}>💡 Número izquierdo = escogidos · Número derecho = disponibles (editable)</p>
+
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
+          <div style={{background:"#FFF",borderRadius:18,padding:"28px 26px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+            <div style={{fontSize:36,marginBottom:12}}>🎁</div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:8}}>¿Eliminar este regalo?</h3>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:22}}>Esta acción no se puede deshacer.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{remove(confirmDel);setConfirmDel(null);}} style={{background:"#E55B5B",color:"#FFF",border:"none",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",flex:1}}>Eliminar</button>
+              <button onClick={()=>setConfirmDel(null)} style={{...ghostBtn(),flex:1}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── DRAFT INPUT (evita pérdida de foco en listas) ─────────────── */
+function DraftInput({value,onChange,style,placeholder}){
+  const [local,setLocal]=useState(value||"");
+  const lastExternal=useRef(value||"");
+  useEffect(()=>{
+    if(value!==lastExternal.current){
+      lastExternal.current=value||"";
+      setLocal(value||"");
+    }
+  },[value]);
+  const handleChange=e=>setLocal(e.target.value);
+  const handleBlur=e=>{
+    if(e.target.value!==lastExternal.current){
+      lastExternal.current=e.target.value;
+      onChange(e.target.value);
+    }
+  };
+  return <input value={local} onChange={handleChange} onBlur={handleBlur} placeholder={placeholder||""} style={style}/>;
+}
+
+/* ─── DRAFT COLOR PICKER (para OptionsTab sin perder estado) ────── */
+function DraftColorPicker({value,onChange}){
+  const [local,setLocal]=useState(value||"#888888");
+  const [changed,setChanged]=useState(false);
+  const savedRef=useRef(value||"#888888");
+  useEffect(()=>{
+    if(value!==savedRef.current){savedRef.current=value||"#888888";setLocal(value||"#888888");setChanged(false);}
+  },[value]);
+  const accept=e=>{e.preventDefault();e.stopPropagation();savedRef.current=local;onChange(local);setChanged(false);};
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+      <input type="color" value={local} onChange={e=>{setLocal(e.target.value);setChanged(true);}}
+        style={{width:44,height:44,border:`2px solid ${changed?"#7B6CF6":"#E4DFF5"}`,borderRadius:10,cursor:"pointer",padding:3,flexShrink:0}}/>
+      <button onMouseDown={accept}
+        style={{background:changed?"#3DAB7A":"#C4BEDB",color:"#FFF",border:"none",padding:"6px 10px",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:700,cursor:changed?"pointer":"default",whiteSpace:"nowrap",transition:"background .2s"}}>
+        ✓
+      </button>
+    </div>
+  );
+}
+
+/* ─── OPTIONS TAB ────────────────────────────────────────────────── */
+function OptionsTab({cfg,saveCfg,apc,setTabDirty}){
+  const [draft,setDraft]=useState({asistira:[...cfg.asistira],tipoRegalo:[...cfg.tipoRegalo]});
+  const [dirty,setDirty]=useState(false);
+  const [newT,setNewT]=useState("");
+  const newTRef=useRef(null);
+
+  useEffect(()=>{
+    if(!dirty)setDraft({asistira:[...cfg.asistira],tipoRegalo:[...cfg.tipoRegalo]});
+  },[cfg.asistira,cfg.tipoRegalo]);
+
+  const upA=(id,f,v)=>{setDirty(true);setTabDirty&&setTabDirty(true);setDraft(d=>({...d,asistira:d.asistira.map(a=>a.id===id?{...a,[f]:v}:a)}));};
+  const delA=id=>{setDirty(true);setDraft(d=>({...d,asistira:d.asistira.filter(a=>a.id!==id)}));};
+  const [newA,setNewA]=useState("");
+  const newARef=useRef(null);
+  const addA=()=>{if(!newA.trim())return;setDirty(true);setDraft(d=>({...d,asistira:[...d.asistira,{id:mkId(),label:newA.trim(),color:"#888888"}]}));setNewA("");setTimeout(()=>newARef.current?.focus(),50);};
+
+  const upT=(id,f,v)=>{setDirty(true);setDraft(d=>({...d,tipoRegalo:d.tipoRegalo.map(t=>t.id===id?{...t,[f]:v}:t)}));};
+  const addT=()=>{if(!newT.trim())return;setDirty(true);setDraft(d=>({...d,tipoRegalo:[...d.tipoRegalo,{id:mkId(),label:newT.trim(),color:"#888888",showGift:true}]}));setNewT("");setTimeout(()=>newTRef.current?.focus(),50);};
+  const delT=id=>{setDirty(true);setDraft(d=>({...d,tipoRegalo:d.tipoRegalo.filter(t=>t.id!==id)}));};
+
+  const save=async()=>{
+    setTabDirty&&setTabDirty(false);
+    // Detectar cambios en labels de asistira para actualizar registros
+    const labelChanges={};
+    draft.asistira.forEach(na=>{
+      const old=cfg.asistira.find(oa=>oa.id===na.id);
+      if(old&&old.label!==na.label)labelChanges[old.label]={label:na.label,color:na.color};
+    });
+    await saveCfg({...cfg,...draft});
+    // Actualizar TODOS los registros en Firebase con labels actuales
+    if(window.__firebase){
+      const regsSnap=await window.__firebase.getRegs();
+      const idMap={};
+      draft.asistira.forEach(na=>{idMap[na.id]={label:na.label,color:na.color,id:na.id};});
+      const labelMap={};
+      draft.asistira.forEach(na=>{
+        labelMap[na.label.trim()]={label:na.label,color:na.color,id:na.id};
+        const oldOpt=cfg.asistira.find(oa=>oa.id===na.id);
+        if(oldOpt)labelMap[oldOpt.label.trim()]={label:na.label,color:na.color,id:na.id};
+      });
+      for(const r of regsSnap){
+        const opt=idMap[r.asistiraId]||labelMap[(r.asistiraLabel||"").trim()];
+        if(opt&&(r.asistiraLabel!==opt.label||r.asistiraColor!==opt.color||r.asistiraId!==opt.id)){
+          await window.__firebase.updateReg(r.id,{asistiraLabel:opt.label,asistiraColor:opt.color,asistiraId:opt.id});
+        }
+      }
+    }
+    setDirty(false);
+  };
+
+  const SecCard=({title,children})=>(
+    <div style={cardSt()}>
+      <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:18}}>{title}</h3>
+      {children}
+    </div>
+  );
+
+  return(
+    <div>
+      <SecCard title='Opciones de "¿Asistirá?"'>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:14}}>Puedes agregar, editar el texto y color, o eliminar opciones.</p>
+        {draft.asistira.map(a=>(
+          <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <DraftInput value={a.label} onChange={v=>upA(a.id,"label",v)} style={{flex:1,...inp()}}/>
+            <DraftColorPicker value={a.color} onChange={v=>upA(a.id,"color",v)}/>
+            <button onClick={()=>delA(a.id)} style={dangerBtn}>✕</button>
+          </div>
+        ))}
+        <div style={{display:"flex",gap:10,marginTop:10}}>
+          <input ref={newARef} value={newA} onChange={e=>setNewA(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addA();}}} placeholder="Nueva opción..." style={{flex:1,...inp()}}/>
+          <button onClick={addA} style={{background:apc,color:"#FFF",border:"none",padding:"11px 18px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Agregar</button>
+        </div>
+      </SecCard>
+
+      <SecCard title='Opciones de "Tipo de regalo"'>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:14}}>Activa "Mostrar lista" para que aparezca el campo de regalo.</p>
+        {draft.tipoRegalo.map(t=>(
+          <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+            <DraftInput value={t.label} onChange={v=>upT(t.id,"label",v)} style={{minWidth:120,flex:1,...inp()}}/>
+            <DraftColorPicker value={t.color} onChange={v=>upT(t.id,"color",v)}/>
+            <label style={{display:"flex",alignItems:"center",gap:7,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#6A6580",cursor:"pointer",whiteSpace:"nowrap",userSelect:"none"}}>
+              <input type="checkbox" checked={t.showGift} onChange={e=>upT(t.id,"showGift",e.target.checked)} style={{width:16,height:16,accentColor:apc}}/>
+              Mostrar lista de regalos
+            </label>
+            <button onClick={()=>delT(t.id)} style={dangerBtn}>✕</button>
+          </div>
+        ))}
+        <div style={{display:"flex",gap:10,marginTop:10}}>
+          <input ref={newTRef} value={newT} onChange={e=>setNewT(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addT();}}} placeholder="Nueva opción..." style={{flex:1,...inp()}}/>
+          <button onClick={addT} style={{background:apc,color:"#FFF",border:"none",padding:"11px 18px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Agregar</button>
+        </div>
+      </SecCard>
+
+      {dirty&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,padding:"10px 16px",background:`linear-gradient(135deg, ${apc}, ${cfg.accentColor||"#F0A070"})`,boxShadow:"0 4px 20px rgba(0,0,0,.15)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,color:"#FFF"}}>⚠️ Cambios sin guardar</span>
+          <button onClick={save} style={{background:"#FFF",color:apc,border:"none",padding:"9px 20px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>
+            💾 Guardar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── MODAL TEXT FIELD (para DesignTab en móvil) ────────────────── */
+function ModalTextField({value,onSave,label,type,rows,placeholder}){
+  const [open,setOpen]=useState(false);
+  const [local,setLocal]=useState(value||"");
+  const savedRef=useRef(value||"");
+  const taRef=useRef(null);
+
+  useEffect(()=>{
+    if(value!==savedRef.current){savedRef.current=value||"";setLocal(value||"");}
+  },[value]);
+
+  const openModal=()=>{setLocal(savedRef.current);setOpen(true);setTimeout(()=>taRef.current?.focus(),100);};
+  const save=()=>{savedRef.current=local;onSave(local);setOpen(false);};
+  const cancel=()=>{setLocal(savedRef.current);setOpen(false);};
+
+  const preview=local||placeholder||"(vacío)";
+  return(
+    <div style={{marginBottom:16}}>
+      {label&&<label style={lbl()}>{label}</label>}
+      <div onClick={openModal} style={{...inp(),cursor:"pointer",color:local?"#1A1535":"#C4BEDB",display:"flex",justifyContent:"space-between",alignItems:"center",userSelect:"none"}}>
+        <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:14}}>{preview}</span>
+        <span style={{fontSize:14,marginLeft:8,color:"#8880AA",flexShrink:0}}>✏️</span>
+      </div>
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.6)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:99999,padding:0}}>
+          <div style={{background:"#FFF",borderRadius:"20px 20px 0 0",padding:"24px 20px 32px",width:"100%",maxWidth:600,boxShadow:"0 -8px 40px rgba(0,0,0,.2)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:16,color:"#1A1535",fontWeight:700}}>{label||"Editar texto"}</span>
+              <button onClick={cancel} style={{background:"#F5F2FF",border:"none",borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:15,color:"#8880AA"}}>✕</button>
+            </div>
+            {type==="textarea"
+              ?<textarea ref={taRef} value={local} onChange={e=>setLocal(e.target.value)} rows={rows||5} placeholder={placeholder||""} style={{...inp(),resize:"none",lineHeight:1.7,fontSize:16}}/>
+              :<input ref={taRef} type="text" value={local} onChange={e=>setLocal(e.target.value)} placeholder={placeholder||""} style={{...inp(),fontSize:16}}/>
+            }
+            <div style={{display:"flex",gap:10,marginTop:14}}>
+              <button onClick={save} style={{background:"#7B6CF6",color:"#FFF",border:"none",padding:"13px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:800,cursor:"pointer",flex:1}}>✓ Guardar</button>
+              <button onClick={cancel} style={{...ghostBtn(),flex:1}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── REUSABLE FIELD COMPONENTS (global = no focus loss) ────────── */
+function TextField({value,onSave,label,type,rows,placeholder}){
+  const [local,setLocal]=useState(value||"");
+  const lastVal=useRef(value||"");
+  useEffect(()=>{if(value!==lastVal.current){setLocal(value||"");lastVal.current=value||"";}}, [value]);
+  const commit=e=>{if(e.target.value!==lastVal.current){lastVal.current=e.target.value;onSave(e.target.value);}};
+  return(
+    <div style={{marginBottom:16}}>
+      {label&&<label style={lbl()}>{label}</label>}
+      {type==="textarea"
+        ?<textarea value={local} onChange={e=>setLocal(e.target.value)} onBlur={commit} rows={rows||2} placeholder={placeholder||""} style={{...inp(),resize:"vertical",lineHeight:1.6}}/>
+        :<input type="text" value={local} onChange={e=>setLocal(e.target.value)} onBlur={commit} placeholder={placeholder||""} style={inp()}/>
+      }
+    </div>
+  );
+}
+function ColorField({value,onSave,label}){
+  const [local,setLocal]=useState(value||"#000000");
+  const [changed,setChanged]=useState(false);
+  const savedVal=useRef(value||"#000000");
+  useEffect(()=>{
+    if(value!==savedVal.current){
+      savedVal.current=value||"#000000";
+      setLocal(value||"#000000");
+      setChanged(false);
+    }
+  },[value]);
+  const handleColorChange=e=>{setLocal(e.target.value);setChanged(true);};
+  const handleTextChange=e=>{setLocal(e.target.value);setChanged(true);};
+  const handleAccept=e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    savedVal.current=local;
+    onSave(local);
+    setChanged(false);
+  };
+  return(
+    <div style={{marginBottom:16}}>
+      {label&&<label style={lbl()}>{label}</label>}
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"nowrap",width:"100%"}}>
+        <input type="color" value={local}
+          onChange={handleColorChange}
+          style={{width:40,height:40,border:`2px solid ${changed?"#7B6CF6":"#E4DFF5"}`,borderRadius:10,cursor:"pointer",padding:2,flexShrink:0}}/>
+        <input value={local} onChange={handleTextChange} style={{...inp(),flex:1,minWidth:0,borderColor:changed?"#7B6CF6":"#E4DFF5",padding:"10px 10px"}}/>
+        <button
+          onMouseDown={handleAccept}
+          style={{background:changed?"#3DAB7A":"#C4BEDB",color:"#FFF",border:"none",padding:"10px 12px",borderRadius:9,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:changed?"pointer":"default",whiteSpace:"nowrap",transition:"background .2s",flexShrink:0}}>
+          ✓
+        </button>
+      </div>
+      {changed&&<div style={{width:24,height:24,borderRadius:6,background:local,border:"2px solid #E4DFF5",marginTop:6}}/>}
+    </div>
+  );
+}
+function EmojiField({value,onSave,label}){
+  const [local,setLocal]=useState(value||"");
+  useEffect(()=>setLocal(value||""),[value]);
+  return(
+    <div style={{marginBottom:14}}>
+      {label&&<label style={lbl()}>{label}</label>}
+      <input value={local} onChange={e=>setLocal(e.target.value)} onBlur={e=>onSave(e.target.value)} style={{...inp(),maxWidth:80}}/>
+    </div>
+  );
+}
+
+/* ─── DESIGN TAB ─────────────────────────────────────────────────── */
+function DesignTab({cfg,saveCfg,apc,setTabDirty}){
+  const [sub,setSub]=useState("formulario");
+  const [draft,setDraft]=useState({...cfg});
+  const [dirty,setDirty]=useState(false);
+  useEffect(()=>{setDraft({...cfg});setDirty(false);},[cfg]);
+  const subs=[
+    {id:"formulario",label:"📝 Formulario"},
+    {id:"inicio",label:"🏠 Inicio"},
+    {id:"confirmacion",label:"🎉 Confirmación"},
+    {id:"regalos",label:"🎁 Regalos"}
+  ];
+  const upd=(k,v)=>{setDraft(d=>({...d,[k]:v}));setDirty(true);setTabDirty&&setTabDirty(true);};
+  const save=()=>{saveCfg(draft);setDirty(false);setTabDirty&&setTabDirty(false);};
+  const F=({k,label,type,rows,ph})=><ModalTextField value={draft[k]} onSave={v=>upd(k,v)} label={label} type={type} rows={rows} placeholder={ph}/>;
+  const PC=({k,label})=><ColorField value={draft[k]} onSave={v=>upd(k,v)} label={label}/>;
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:4,marginBottom:20,background:"#F0EDF8",borderRadius:14,padding:5,width:"fit-content",boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
+        {subs.map(s=>(
+          <button key={s.id} onClick={()=>setSub(s.id)} style={{
+            padding:"8px 18px",borderRadius:10,border:"none",cursor:"pointer",
+            fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:sub===s.id?800:600,
+            background:sub===s.id?"#FFF":"transparent",
+            color:sub===s.id?apc:"#9B96B8",
+            boxShadow:sub===s.id?"0 2px 8px rgba(123,108,246,.14)":"none",
+            transition:"all .22s cubic-bezier(.22,.68,0,1.2)",
+            transform:sub===s.id?"scale(1.02)":"scale(1)",
+            letterSpacing:sub===s.id?".01em":".02em"
+          }}>{s.label}</button>
+        ))}
+      </div>
+
+      <div style={cardSt()}>
+        {sub==="formulario"&&(
+          <div className="anim-subtab">
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:20,letterSpacing:"-.01em"}}>Estilo del Formulario</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"0 20px"}}>
+              <F k="title" label="Título"/> <F k="subtitle" label="Subtítulo" type="textarea"/>
+              <PC k="primaryColor" label="Color principal"/> <PC k="accentColor" label="Color de acento"/>
+              <PC k="bgColor" label="Color de fondo"/> <PC k="cardBg" label="Color de tarjeta"/>
+              <PC k="formBorderColor" label="Color de bordes"/> <PC k="formLabelColor" label="Color de etiquetas"/>
+              <PC k="formInputColor" label="Color texto inputs"/> <PC k="formTitleColor" label="Color título"/>
+              <PC k="formSubtitleColor" label="Color subtítulo"/> <PC k="formBtnTextColor" label="Color texto botón"/>
+            </div>
+          </div>
+        )}
+        {sub==="inicio"&&(
+          <div className="anim-subtab">
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:20,letterSpacing:"-.01em"}}>Página de Inicio</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"0 20px"}}>
+              <F k="landingEmoji" label="Emoji principal"/><div/>
+              <PC k="landingTitleColor" label="Color del título"/> <PC k="landingSubtitleColor" label="Color del subtítulo"/>
+            </div>
+          </div>
+        )}
+        {sub==="confirmacion"&&(
+          <div className="anim-subtab">
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:20,letterSpacing:"-.01em"}}>Pantalla de Confirmación</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"0 20px"}}>
+              <F k="confirmEmoji" label="Emoji principal"/> <F k="confirmTitle" label="Título"/>
+              <F k="confirmSubtitle" label="Subtítulo" type="textarea"/> <F k="confirmNote" label="Nota de pantallazo" type="textarea"/>
+              <PC k="confirmBg" label="Color fondo"/> <PC k="confirmCardBg" label="Color tarjeta"/>
+              <PC k="confirmSummaryBg" label="Color resumen"/> <PC k="confirmTitleColor" label="Color título"/>
+              <PC k="confirmTextColor" label="Color texto"/> <PC k="confirmNoteColor" label="Color nota"/>
+              <PC k="confirmNoteBg" label="Fondo nota"/> <PC k="confirmPrimaryColor" label="Color botones"/>
+            </div>
+            <div style={{marginTop:20}}>
+              <h4 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:15,color:"#1A1535",marginBottom:14}}>Mensajes personalizados por respuesta de asistencia</h4>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:14}}>Usa {"{{Nombre}}"} para insertar el nombre del invitado. Si se deja vacío, se muestra el mensaje estándar. Los mensajes se conectan con las opciones de "¿Asistirá?" actuales.</p>
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                {cfg.asistira.map(opt=>(
+                  <ModalTextField
+                    key={opt.id}
+                    value={draft[`confirmMsg_${opt.id}`]||""}
+                    onSave={v=>upd(`confirmMsg_${opt.id}`,v)}
+                    label={`Mensaje si responde "${opt.label}"`}
+                    type="textarea"
+                    rows={5}
+                    placeholder="Dejar vacío para mensaje estándar..."/>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {sub==="regalos"&&(
+          <div className="anim-subtab">
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:20,letterSpacing:"-.01em"}}>Etiquetas de Tarjetas de Regalos</h3>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginBottom:18}}>Cambia el texto que aparece en las 3 tarjetas de resumen en la gestión de regalos.</p>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <F k="giftLabelTotal" label="Tarjeta 1 — Total disponibles"/>
+              <F k="giftLabelEscogidos" label="Tarjeta 2 — Total escogidos"/>
+              <F k="giftLabelRestantes" label="Tarjeta 3 — Restantes"/>
+            </div>
+          </div>
+        )}
+      </div>
+      {dirty&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,padding:"10px 16px",background:`linear-gradient(135deg, ${apc}, ${cfg.accentColor||"#F0A070"})`,boxShadow:"0 4px 20px rgba(0,0,0,.15)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,color:"#FFF"}}>⚠️ Cambios sin guardar</span>
+          <button onClick={save} style={{background:"#FFF",color:apc,border:"none",padding:"9px 20px",borderRadius:10,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>
+            💾 Guardar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── CHANGE PASSWORD ───────────────────────────────────────────── */
+function ChangePassword({apc}){
+  const [cur,setCur]=useState("");
+  const [newP,setNewP]=useState("");
+  const [conf,setConf]=useState("");
+  const [msg,setMsg]=useState(null);
+  const [loading,setLoading]=useState(false);
+
+  const handleChange=async()=>{
+    if(!cur.trim()){setMsg({type:"err",text:"Ingresa tu contraseña actual"});return;}
+    if(newP.length<6){setMsg({type:"err",text:"La nueva contraseña debe tener al menos 6 caracteres"});return;}
+    if(newP!==conf){setMsg({type:"err",text:"Las contraseñas nuevas no coinciden"});return;}
+    setLoading(true);setMsg(null);
+    try{
+      await window.__firebase.changePassword(cur,newP);
+      setCur("");setNewP("");setConf("");
+      setMsg({type:"ok",text:"✅ Contraseña cambiada exitosamente"});
+      setTimeout(()=>setMsg(null),4000);
+    }catch(ex){
+      const code=ex.code||"";
+      if(code.includes("wrong-password")||code.includes("invalid-credential"))
+        setMsg({type:"err",text:"La contraseña actual es incorrecta"});
+      else if(code.includes("weak-password"))
+        setMsg({type:"err",text:"La nueva contraseña es demasiado débil"});
+      else
+        setMsg({type:"err",text:"Error al cambiar contraseña: "+ex.message});
+    }finally{setLoading(false);}
+  };
+
+  return(
+    <div style={{marginTop:24,borderTop:"1px solid #EDE9F8",paddingTop:20}}>
+      <h4 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:15,color:"#1A1535",marginBottom:14}}>🔑 Cambiar contraseña del panel</h4>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div>
+          <label style={lbl()}>Contraseña actual</label>
+          <input type="password" value={cur} onChange={e=>setCur(e.target.value)} placeholder="••••••••" autoComplete="current-password" style={inp()}/>
+        </div>
+        <div>
+          <label style={lbl()}>Nueva contraseña (mín. 6 caracteres)</label>
+          <input type="password" value={newP} onChange={e=>setNewP(e.target.value)} placeholder="••••••••" autoComplete="new-password" style={inp()}/>
+        </div>
+        <div>
+          <label style={lbl()}>Confirmar nueva contraseña</label>
+          <input type="password" value={conf} onChange={e=>setConf(e.target.value)} placeholder="••••••••" autoComplete="new-password" style={inp()}/>
+        </div>
+        {msg&&<p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:msg.type==="ok"?"#3DAB7A":"#E55B5B"}}>{msg.text}</p>}
+        <button onClick={handleChange} disabled={loading} style={{background:loading?"#EDE9F8":apc,color:loading?"#C4BEDB":"#FFF",border:"none",padding:"12px 20px",borderRadius:12,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>{loading?"Cambiando...":"Cambiar contraseña"}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── EMOJI INPUT ───────────────────────────────────────────────── */
+function EmojiInput({id,cfg,saveCfg}){
+  return <EmojiField value={(cfg.adminTabEmojis||{})[id]||""} onSave={v=>saveCfg({...cfg,adminTabEmojis:{...(cfg.adminTabEmojis||{}),[id]:v}})}/>;
+}
+
+/* ─── EDITABLE RECIPIENTS ───────────────────────────────────────── */
+function EditableRecipients({ag,updateAgendamiento,regs,apc,readOnly=false}){
+  const [list,setList]=useState((ag.registros||[]).map(r=>({...r})));
+  const [dirty,setDirty]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [saveOk,setSaveOk]=useState(false);
+  const [saveErr,setSaveErr]=useState(false);
+  const [newEmail,setNewEmail]=useState("");
+  const [newName,setNewName]=useState("");
+
+  // Sincronizar si ag.registros cambia desde Firestore (ej: otro dispositivo)
+  useEffect(()=>{
+    if(!dirty) setList((ag.registros||[]).map(r=>({...r})));
+  },[ag.registros]);
+
+  const remove=i=>{if(readOnly)return;setList(l=>l.filter((_,idx)=>idx!==i));setDirty(true);setSaveOk(false);setSaveErr(false);};
+  const addManual=()=>{
+    if(readOnly||!newEmail.trim())return;
+    setList(l=>[...l,{id:mkId(),nombre:newName.trim()||newEmail.trim(),email:newEmail.trim()}]);
+    setNewEmail("");setNewName("");setDirty(true);setSaveOk(false);setSaveErr(false);
+  };
+  const addFromReg=r=>{
+    if(readOnly)return;
+    if(list.find(x=>x.id===r.id))return;
+    setList(l=>[...l,{id:r.id,nombre:r.nombre,email:r.email}]);
+    setDirty(true);setSaveOk(false);setSaveErr(false);
+  };
+  const save=async()=>{
+    if(saving)return;
+    setSaving(true);setSaveErr(false);
+    try{
+      await updateAgendamiento(ag.id,{registros:list,total:list.length});
+      setDirty(false);setSaveOk(true);
+      setTimeout(()=>setSaveOk(false),3000);
+    }catch(e){
+      console.error(e);
+      setSaveErr(true);
+      setTimeout(()=>setSaveErr(false),4000);
+    }
+    finally{setSaving(false);}
+  };
+
+  // Registros no incluidos aún
+  const notIncluded=regs.filter(r=>r.email&&!list.find(x=>x.id===r.id));
+
+  return(
+    <div style={{borderTop:"1px solid #F0EDF8",padding:"14px 16px",background:"#FDFBFF"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,fontWeight:800,color:"#9B96B8",textTransform:"uppercase"}}>Destinatarios ({list.length}){readOnly&&<span style={{marginLeft:8,color:"#3DAB7A",fontSize:10}}> · Solo lectura</span>}</p>
+        {!readOnly&&(dirty||saveOk||saveErr)&&<button onClick={save} disabled={saving} style={{background:saveErr?"#E55B5B":saveOk?"#3DAB7A":saving?"#A0D8B3":"#3DAB7A",color:"#FFF",border:"none",padding:"6px 14px",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:700,cursor:saving?"not-allowed":"pointer",opacity:saving?.7:1}}>
+          {saving?"⏳ Guardando...":saveErr?"❌ Error al guardar":saveOk?"✅ Guardado":"💾 Guardar cambios"}
+        </button>}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+        {list.map((r,i)=>(
+          <div key={r.id||i} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 10px",background:"#FFF",borderRadius:8,border:"1px solid #EDE9F8"}}>
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#1A1535",flex:1}}>{r.nombre}</span>
+            <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",flex:1}}>{r.email||"Sin correo"}</span>
+            {!readOnly&&list.length>1&&<button onClick={()=>remove(i)} style={{background:"none",border:"none",cursor:"pointer",color:"#E55B5B",fontSize:14,padding:"2px 6px"}}>✕</button>}
+          </div>
+        ))}
+      </div>
+      {/* Agregar de registros existentes */}
+      {!readOnly&&notIncluded.length>0&&(
+        <div style={{marginBottom:10}}>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,fontWeight:800,color:"#9B96B8",textTransform:"uppercase",marginBottom:6}}>Agregar de registros</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {notIncluded.slice(0,8).map(r=>(
+              <button key={r.id} onClick={()=>addFromReg(r)} style={{background:`${apc}10`,color:apc,border:`1px solid ${apc}30`,padding:"5px 10px",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                + {r.nombre}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Agregar correo manual */}
+      {!readOnly&&<div>
+        <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:11,fontWeight:800,color:"#9B96B8",textTransform:"uppercase",marginBottom:6}}>Agregar manualmente</p>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Nombre" style={{...inp(),flex:1,minWidth:100,padding:"8px 10px"}}/>
+          <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="correo@ejemplo.com" type="email" style={{...inp(),flex:2,minWidth:140,padding:"8px 10px"}}/>
+          <button onClick={addManual} style={{background:apc,color:"#FFF",border:"none",padding:"8px 14px",borderRadius:9,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>+ Agregar</button>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ─── AGENDAMIENTO TAB ──────────────────────────────────────────── */
+function AgendamientoTab({agendamientos,deleteAgendamiento,updateAgendamiento,regs,pendientes,cfg,apc,highlightedAg}){
+  const [expandedId,setExpandedId]=useState(null);
+  const [editId,setEditId]=useState(null);
+  const [editFecha,setEditFecha]=useState("");
+  const [editHora,setEditHora]=useState("");
+  const [confirmDelId,setConfirmDelId]=useState(null);
+  const [deleting,setDeleting]=useState(false);
+  const [sending,setSending]=useState(null);
+  const [sent,setSent]=useState(null);
+  const [agView,setAgView]=useState("pendientes"); // pendientes | enviados
+
+  const sorted=[...agendamientos].sort((a,b)=>new Date(a.fechaHora)-new Date(b.fechaHora));
+  const listaPendientes=sorted.filter(ag=>!ag.ejecutado);
+  const listaEnviados=sorted.filter(ag=>ag.ejecutado);
+  const listaActual=agView==="pendientes"?listaPendientes:listaEnviados;
+
+  const fmtFecha=dt=>{
+    const d=new Date(dt);
+    return d.toLocaleDateString("es",{day:"2-digit",month:"long",year:"numeric"})+" - "+d.toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"});
+  };
+
+  const sendAgendamiento=async(ag)=>{
+    setSending(ag.id);
+    let ok=0;
+    for(const r of (ag.registros||[])){
+      const fullReg=regs.find(x=>x.id===r.id)||r;
+      if(!fullReg.email)continue;
+      try{await sendReminderEmailJS(fullReg,cfg);ok++;}catch{}
+    }
+    await updateAgendamiento(ag.id,{ejecutado:true,ejecutadoEn:new Date().toISOString()});
+    setSending(null);
+    setSent(ag.id);
+    setTimeout(()=>setSent(null),3000);
+  };
+
+  const startEdit=ag=>{
+    const dt=new Date(ag.fechaHora);
+    const yyyy=dt.getFullYear();
+    const mm=String(dt.getMonth()+1).padStart(2,"0");
+    const dd=String(dt.getDate()).padStart(2,"0");
+    const hh=String(dt.getHours()).padStart(2,"0");
+    const min=String(dt.getMinutes()).padStart(2,"0");
+    setEditFecha(`${yyyy}-${mm}-${dd}`);
+    setEditHora(`${hh}:${min}`);
+    setEditId(ag.id);
+  };
+
+  const [savingEdit,setSavingEdit]=useState(false);
+  const [editErr,setEditErr]=useState(false);
+  const saveEdit=async()=>{
+    if(!editFecha||savingEdit)return;
+    setSavingEdit(true);setEditErr(false);
+    try{
+      const hora=editHora||"00:00";
+      const [y,mo,d]=editFecha.split("-").map(Number);
+      const [h,mi]=hora.split(":").map(Number);
+      const dt=new Date(y,mo-1,d,h||0,mi||0,0);
+      await updateAgendamiento(editId,{fechaHora:dt.toISOString()});
+      setEditId(null);
+    }catch(e){
+      console.error('Error guardando fecha:',e);
+      setEditErr(true);
+      setTimeout(()=>setEditErr(false),4000);
+    }
+    finally{setSavingEdit(false);}
+  };
+
+  return(
+    <div>
+      {/* Sub-tabs Pendientes / Enviados */}
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        <button onClick={()=>setAgView("pendientes")} style={{padding:"8px 16px",border:agView==="pendientes"?"none":"1.5px solid #E4DFF5",borderRadius:10,cursor:"pointer",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,background:agView==="pendientes"?`${apc}15`:"#FFF",color:agView==="pendientes"?apc:"#8880AA",transition:"all .2s"}}>
+          📅 Pendientes {listaPendientes.length>0&&<span style={{background:apc,color:"#FFF",borderRadius:20,padding:"1px 7px",fontSize:11,marginLeft:4}}>{listaPendientes.length}</span>}
+        </button>
+        <button onClick={()=>setAgView("enviados")} style={{padding:"8px 16px",border:agView==="enviados"?"none":"1.5px solid #E4DFF5",borderRadius:10,cursor:"pointer",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,background:agView==="enviados"?`${apc}15`:"#FFF",color:agView==="enviados"?apc:"#8880AA",transition:"all .2s"}}>
+          ✅ Enviados {listaEnviados.length>0&&<span style={{background:"#3DAB7A",color:"#FFF",borderRadius:20,padding:"1px 7px",fontSize:11,marginLeft:4}}>{listaEnviados.length}</span>}
+        </button>
+      </div>
+      {listaActual.length===0&&(
+        <div style={{textAlign:"center",padding:"40px 0",color:"#C4BEDB",fontFamily:"Plus Jakarta Sans,sans-serif"}}>
+          <div style={{fontSize:40,marginBottom:12}}>{agView==="pendientes"?"📅":"✅"}</div>
+          <p>{agView==="pendientes"?"No hay agendamientos pendientes.":"No hay agendamientos enviados aún."}</p>
+          {agView==="pendientes"&&<p style={{fontSize:12,marginTop:6}}>Crea uno desde Registros → 🔔 Recordatorio → Agendar reenvío</p>}
+        </div>
+      )}
+      {pendientes.length>0&&agView==="pendientes"&&(
+        <div style={{background:"#FFF3CD",borderRadius:12,padding:"12px 16px",marginBottom:16,border:"1px solid #FFC107",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:20}}>⏰</span>
+          <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#856404",flex:1}}>
+            {pendientes.length} agendamiento(s) listo(s) para enviar. Ábrelos abajo y presiona "Enviar ahora".
+          </p>
+        </div>
+      )}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {listaActual.map(ag=>{
+          const isPending=pendientes.find(p=>p.id===ag.id);
+          const isExpanded=expandedId===ag.id;
+          const isEditing=editId===ag.id;
+          return(
+            <div key={ag.id} style={{borderRadius:14,border:`2px solid ${ag.ejecutado?"#C3F0D6":isPending?"#FFC107":"#EDE9F8"}`,overflow:"hidden",background:ag.ejecutado?"#F0FFF7":isPending?"#FFFBEA":"#FFF"}}>
+              {/* Header del lote */}
+              <div id={`ag-row-${ag.id}`} onClick={()=>setExpandedId(isExpanded?null:ag.id)} className={highlightedAg===ag.id?"reg-highlight":""} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",background:highlightedAg===ag.id?"":"transparent",transition:"background 0.2s ease"}}>
+                <span style={{fontSize:18}}>{ag.ejecutado?"✅":isPending?"⏰":"📅"}</span>
+                {isEditing?(
+                  <div style={{display:"flex",gap:8,flex:1,alignItems:"center",flexWrap:"wrap"}} onClick={e=>e.stopPropagation()}>
+                    <input type="date" value={editFecha} onChange={e=>setEditFecha(e.target.value)} style={{...inp(),flex:1,minWidth:120,padding:"8px 10px"}}/>
+                    <input type="time" value={editHora} onChange={e=>setEditHora(e.target.value)} style={{...inp(),width:110,padding:"8px 10px"}}/>
+                    <button onClick={saveEdit} disabled={savingEdit} style={{background:editErr?"#E55B5B":savingEdit?"#A0D8B3":"#3DAB7A",color:"#FFF",border:"none",padding:"8px 14px",borderRadius:9,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:savingEdit?"not-allowed":"pointer"}}>{savingEdit?"Guardando...":editErr?"❌ Error":"✓ Guardar"}</button>
+                    <button onClick={()=>{setEditId(null);setEditErr(false);}} style={{...ghostBtn(),padding:"8px 12px"}}>✕</button>
+                  </div>
+                ):(
+                  <div style={{flex:1}}>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:800,color:"#1A1535",marginBottom:2}}>
+                      Agendamiento {fmtFecha(ag.fechaHora)}
+                    </p>
+                    <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA"}}>
+                      {ag.total||0} destinatario(s) · {ag.ejecutado?"Enviado ✅":isPending?"Listo para enviar":"Programado"}
+                    </p>
+                  </div>
+                )}
+                {!isEditing&&(
+                  <div style={{display:"flex",gap:6}} onClick={e=>e.stopPropagation()}>
+                    {!ag.ejecutado&&isPending&&(
+                      <button onClick={()=>sendAgendamiento(ag)} disabled={sending===ag.id} style={{background:"#3DAB7A",color:"#FFF",border:"none",padding:"7px 12px",borderRadius:9,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        {sending===ag.id?"Enviando...":sent===ag.id?"✅ Enviado":"📧 Enviar ahora"}
+                      </button>
+                    )}
+                    {!ag.ejecutado&&<button onClick={()=>startEdit(ag)} style={{background:"#F0EDF8",border:"none",borderRadius:9,padding:"7px 10px",cursor:"pointer",fontSize:14}}>✏️</button>}
+                    <button onClick={()=>setConfirmDelId(ag.id)} style={{background:"#FFF0F0",border:"none",borderRadius:9,padding:"7px 10px",cursor:"pointer",fontSize:14}}>🗑</button>
+                  </div>
+                )}
+              </div>
+              {/* Detalle expandido con edición de destinatarios */}
+              {isExpanded&&(
+                <EditableRecipients ag={ag} updateAgendamiento={updateAgendamiento} regs={regs} apc={apc} readOnly={!!ag.ejecutado}/>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Confirmar eliminar */}
+      {confirmDelId&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:20}}>
+          <div style={{background:"#FFF",borderRadius:18,padding:"28px 26px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+            <div style={{fontSize:36,marginBottom:12}}>🗑</div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:8}}>¿Eliminar agendamiento?</h3>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:22}}>Esta acción no se puede deshacer.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={async()=>{setDeleting(true);try{await deleteAgendamiento(confirmDelId);}catch(e){console.error(e);}finally{setDeleting(false);setConfirmDelId(null);}}} disabled={deleting} style={{background:deleting?"#F5A5A5":"#E55B5B",color:"#FFF",border:"none",padding:"11px 20px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,cursor:deleting?"not-allowed":"pointer",flex:1}}>{deleting?"Eliminando...":"Eliminar"}</button>
+              <button onClick={()=>setConfirmDelId(null)} style={{...ghostBtn(),flex:1}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── CONFIG TAB ─────────────────────────────────────────────────── */
+function ConfigTab({cfg,saveCfg,apc,aac,setTabDirty,agendamientos,addAgendamiento,deleteAgendamiento,updateAgendamiento,regs,pendientes,highlightedAg}){
+  const [sub,setSub]=useState("panel");
+  useEffect(()=>{
+    window.__goToAgendamiento=()=>setSub("agendamiento");
+    return()=>{delete window.__goToAgendamiento;};
+  },[]);
+  const [testEmail,setTestEmail]=useState("");
+  const [testStatus,setTestStatus]=useState("idle");
+  const subs=[
+    {id:"panel",label:"🖥 Panel Admin"},
+    {id:"login",label:"🔐 Contraseña"},
+    {id:"email",label:"📧 Correo"},
+    {id:"firebase",label:"🔥 Firebase"},
+    {id:"agendamiento",label:"📅 Agendamiento"}
+  ];
+
+  const markDirty=()=>setTabDirty&&setTabDirty(true);
+  const saveAndMark=c=>{saveCfg(c);setTabDirty&&setTabDirty(false);};
+  const PC=({label,k})=><ColorField value={cfg[k]} onSave={v=>{markDirty();saveCfg({...cfg,[k]:v});}} label={label}/>;
+  const TF=({label,k,ph,type})=><TextField value={cfg[k]} onSave={v=>{markDirty();saveCfg({...cfg,[k]:v});}} label={label} type={type} placeholder={ph}/>;
+
+  const testEJ=async()=>{
+    if(!testEmail.trim())return;
+    setTestStatus("sending");
+    try{await sendEmailJS({nombre:"Prueba",email:testEmail,asistiraLabel:"Sí",tipoLabel:"Regalo",regaloNombre:"Test"},cfg);setTestStatus("sent");setTimeout(()=>setTestStatus("idle"),4000);}
+    catch{setTestStatus("err");setTimeout(()=>setTestStatus("idle"),4000);}
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:4,marginBottom:20,background:"#F0EDF8",borderRadius:14,padding:5,flexWrap:"wrap",boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
+        {subs.map(s=>(
+          <button key={s.id} onClick={()=>setSub(s.id)} style={{
+            padding:"8px 18px",borderRadius:10,border:"none",cursor:"pointer",
+            fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:sub===s.id?800:600,
+            background:sub===s.id?"#FFF":"transparent",
+            color:sub===s.id?apc:"#9B96B8",
+            boxShadow:sub===s.id?"0 2px 8px rgba(123,108,246,.14)":"none",
+            transition:"all .22s cubic-bezier(.22,.68,0,1.2)",
+            transform:sub===s.id?"scale(1.02)":"scale(1)",
+            letterSpacing:sub===s.id?".01em":".02em"
+          }}>{s.label}</button>
+        ))}
+      </div>
+      <div style={cardSt()}>
+        {sub==="panel"&&(
+          <div className="anim-subtab">
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:20,letterSpacing:"-.01em"}}>Colores del Panel de Administrador</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"0 20px"}}>
+              <PC k="adminPrimaryColor" label="Color principal"/> <PC k="adminAccentColor" label="Color de acento"/>
+              <PC k="adminBg" label="Fondo del panel"/> <PC k="adminCardBg" label="Color de tarjetas"/>
+            </div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:16,color:"#1A1535",marginBottom:16,marginTop:8}}>Emojis de Pestañas</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"0 20px"}}>
+              {["registros","regalos","opciones","diseno","configuracion"].map(id=>(
+                <div key={id} style={{marginBottom:14}}>
+                  <label style={lbl()}>{id}</label>
+                  <EmojiInput id={id} cfg={cfg} saveCfg={saveCfg}/>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {sub==="login"&&(
+          <div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:12}}>Pantalla de Acceso al Panel</h3>
+            <div style={{background:"#F0FFF4",borderRadius:12,padding:"14px 16px",marginBottom:20,border:"1px solid #BBF7D0"}}>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:800,color:"#166534",marginBottom:8}}>🔐 Cómo activar el login con Firebase Auth (una sola vez):</p>
+              <ol style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#166534",paddingLeft:18,lineHeight:2.1,margin:0}}>
+                <li>Ve a <strong>console.firebase.google.com</strong> → tu proyecto <strong>rsvp-boda-66d42</strong></li>
+                <li>En el menú izquierdo ve a <strong>Authentication</strong> → "Comenzar"</li>
+                <li>En la pestaña <strong>"Sign-in method"</strong>, activa <strong>Correo electrónico/Contraseña</strong></li>
+                <li>Ve a la pestaña <strong>"Users"</strong> → "Agregar usuario"</li>
+                <li>Ingresa el correo y contraseña que usarás para entrar al panel</li>
+                <li>¡Listo! Usa ese correo y contraseña en la pantalla de acceso</li>
+              </ol>
+            </div>
+            <div style={{background:"#FFF7ED",borderRadius:12,padding:"12px 16px",marginBottom:20,border:"1px solid #FED7AA"}}>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#C2410C"}}>⚠️ También debes actualizar las reglas de Firestore:</p>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#7C2D12",marginTop:6,lineHeight:1.7}}>En Firebase Console → Firestore → Reglas, reemplaza todo con:</p>
+              <pre style={{background:"#1A1535",color:"#A3E635",borderRadius:10,padding:"12px 14px",fontSize:11,fontFamily:"monospace",marginTop:8,overflowX:"auto",lineHeight:1.7}}>{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    // Formulario público: solo puede crear registros
+    match /registros/{id} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
+    // Config y agendamientos: solo admin autenticado
+    match /rsvp/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /agendamientos/{id} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}</pre>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:"0 20px"}}>
+              <TF k="loginEmoji" label="Emoji"/> <TF k="loginTitle" label="Título"/>
+              <TF k="loginSubtitle" label="Subtítulo"/> <TF k="loginBtnText" label="Texto del botón"/>
+              <PC k="loginBg" label="Color fondo"/> <PC k="loginCardBg" label="Color tarjeta"/>
+              <PC k="loginTitleColor" label="Color título"/> <PC k="loginSubtitleColor" label="Color subtítulo"/>
+              <PC k="loginCircleColor" label="Color ícono"/>
+            </div>
+            <ChangePassword apc={apc}/>
+          </div>
+        )}
+        {sub==="email"&&(
+          <div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:8}}>Configuración de Correo Electrónico</h3>
+            <div style={{background:"#F0F9FF",borderRadius:12,padding:"14px 16px",marginBottom:20,border:"1px solid #BAE0FF"}}>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#0369A1",marginBottom:8}}>📋 Pasos para configurar el envío de correos:</p>
+              <ol style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#0369A1",paddingLeft:18,lineHeight:2,margin:0}}>
+                <li>Ve a <strong>emailjs.com</strong> y crea una cuenta gratuita</li>
+                <li>En "Email Services" conecta tu Gmail u otro correo</li>
+                <li>En "Email Templates" crea plantilla con variables: <code style={{fontSize:11,background:"#E0F2FE",padding:"2px 6px",borderRadius:4}}>{"{{to_email}} {{nombre}} {{asistira}} {{tipo_regalo}} {{regalo}}"}</code></li>
+                <li>Copia el <strong>Service ID</strong>, <strong>Template ID</strong> y <strong>Public Key</strong> abajo</li>
+              </ol>
+            </div>
+            <TF k="ejPublicKey" label="Public Key (Account → API Keys)"/>
+            <TF k="ejServiceId" label="Service ID"/>
+            <TF k="ejTemplateId" label="Template ID (confirmación de registro)"/>
+            <TF k="ejReminderTemplateId" label="Template ID para recordatorios (opcional)"/>
+            <TF k="emailFromName" label="Nombre del remitente"/>
+            <div style={{background:"#F0FFF4",borderRadius:10,padding:"10px 14px",border:"1px solid #BBF7D0",marginBottom:16}}>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#166534"}}>💡 Si dejas vacío el Template ID para recordatorios, se usará el mismo template de confirmación. Para crear uno nuevo ve a emailjs.com → Email Templates → Nueva plantilla.</p>
+            </div>
+            <div style={{marginTop:10,padding:"14px 16px",background:"#F9F7FF",borderRadius:12,border:"1px solid #E4DFF5"}}>
+              <label style={lbl()}>Enviar correo de prueba</label>
+              <div style={{display:"flex",gap:10}}>
+                <input type="email" value={testEmail} onChange={e=>setTestEmail(e.target.value)} placeholder="correo@ejemplo.com" style={{...inp(),flex:1}}/>
+                <button onClick={testEJ} disabled={testStatus!=="idle"} style={{background:testStatus==="sent"?"#3DAB7A":apc,color:"#FFF",border:"none",padding:"12px 18px",borderRadius:11,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all .2s"}}>
+                  {testStatus==="sending"?"Enviando...":testStatus==="sent"?"✅ Enviado":testStatus==="err"?"⚠️ Error":"Enviar prueba"}
+                </button>
+              </div>
+              {testStatus==="err"&&<p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#E55B5B",marginTop:8}}>Verifica que el Service ID, Template ID y Public Key sean correctos.</p>}
+            </div>
+          </div>
+        )}
+        {sub==="agendamiento"&&(
+          <AgendamientoTab agendamientos={agendamientos} deleteAgendamiento={deleteAgendamiento} updateAgendamiento={updateAgendamiento} regs={regs} pendientes={pendientes} cfg={cfg} apc={apc} highlightedAg={highlightedAg}/>
+        )}
+        {sub==="firebase"&&(
+          <div>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:17,color:"#1A1535",marginBottom:12}}>🔥 Configuración de Firebase</h3>
+            <div style={{background:"#FFF7ED",borderRadius:12,padding:"16px 18px",marginBottom:20,border:"1px solid #FED7AA"}}>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:800,color:"#C2410C",marginBottom:10}}>📋 Pasos para conectar Firebase (solo 5 minutos):</p>
+              <ol style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#7C2D12",paddingLeft:18,lineHeight:2.1,margin:0}}>
+                <li>Ve a <strong>console.firebase.google.com</strong> e inicia sesión con tu cuenta Google</li>
+                <li>Haz clic en <strong>"Agregar proyecto"</strong>, ponle un nombre (ej: "rsvp-boda") y sigue los pasos</li>
+                <li>En el panel del proyecto, haz clic en el icono <strong>{"</>"}</strong> (Web) para registrar la app</li>
+                <li>Copia el objeto <code style={{background:"#FEF3C7",padding:"2px 5px",borderRadius:4,fontSize:12}}>firebaseConfig</code> que te dan y pégalo en el archivo HTML reemplazando los valores de configuración al inicio del script</li>
+                <li>En el menú izquierdo ve a <strong>Firestore Database</strong> → "Crear base de datos" → Modo de prueba → Ubicación: <strong>us-east1</strong></li>
+                <li>¡Listo! Todo se guardará automáticamente en la nube 🎉</li>
+              </ol>
+            </div>
+            <div style={{background:"#F0FFF4",borderRadius:12,padding:"14px 16px",border:"1px solid #BBF7D0"}}>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,fontWeight:700,color:"#166534",marginBottom:6}}>✅ Estado de conexión</p>
+              <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#166534"}}>
+                {window.__firebaseReady?"🟢 Firebase conectado correctamente":"🔴 Firebase no conectado — revisa la configuración en el HTML"}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── ROOT APP ───────────────────────────────────────────────────── */
+function App(){
+  const [view,setView]=useState("landing");
+  const [cfg,setCfg]=useState(null);
+  const [regs,setRegs]=useState([]);
+  const [agendamientos,setAgendamientos]=useState([]);
+  const [ready,setReady]=useState(false);
+  const [authed,setAuthed]=useState(false);
+
+  useEffect(()=>{
+    (async()=>{
+      await waitFirebase();
+      const c=await fStore(DEF_CFG);
+      // Solo poner defaults si no existen en absoluto
+      if(!c.confirmMsgNo){
+        c.confirmMsgNo="{{Nombre}}, Muchas gracias por notificarnos que no podrás asistir. Agradecemos muchisimo que te hayas tomado el tiempo de responder el formulario para ayudarnos con la organización. Aun asi, si cambias de parecer o cualquier cosa surge, avisanos y llena nuevamente el formulario. Saludos: Amir y Karen";
+      }
+      if(!c.asistira||c.asistira.length===0){
+        c.asistira=[
+          {id:mkId(),label:"Sí",color:"#3DAB7A"},
+          {id:mkId(),label:"No",color:"#E55B5B"},
+        ];
+      }
+      // Migrar mensajes viejos al formato por id
+      if(c.asistira){
+        c.asistira.forEach(opt=>{
+          const key=`confirmMsg_${opt.id}`;
+          if(!c[key]){
+            if(opt.label==="Sí"&&c.confirmMsgSi)c[key]=c.confirmMsgSi;
+            else if(opt.label==="No"&&c.confirmMsgNo)c[key]=c.confirmMsgNo;
+            else if(opt.label==="No estoy seguro/a"&&c.confirmMsgNoSeguro)c[key]=c.confirmMsgNoSeguro;
+          }
+        });
+      }
+      setCfg(c);
+      setReady(true);
+    })();
+
+    // Real-time listeners
+    let unsub=null, unsubCfg=null, unsubAg=null, unsubAuth=null;
+    waitFirebase().then(()=>{
+      if(window.__firebase){
+        unsub=window.__firebase.onRegsSnapshot(docs=>setRegs(docs));
+        unsubCfg=window.__firebase.onCfgSnapshot(c=>setCfg({...DEF_CFG,...c}));
+        // Firebase Auth state listener — fuente de verdad para authed
+        // Suscribimos agendamientos solo cuando el usuario está autenticado
+        unsubAuth=window.__firebase.onAuthChanged(user=>{
+          setAuthed(!!user);
+          if(user){
+            // Suscribir agendamientos ahora que hay auth
+            if(unsubAg)unsubAg();
+            unsubAg=window.__firebase.onAgendamientosSnapshot(docs=>setAgendamientos(docs));
+          } else {
+            // Desuscribir y limpiar agendamientos al cerrar sesión
+            if(unsubAg){unsubAg();unsubAg=null;}
+            setAgendamientos([]);
+            setView(v=>{if(v==="admin")return "landing";return v;});
+          }
+        });
+      }
+    });
+
+    const onHash=()=>{
+      const h=window.location.hash;
+      if(h==="#admin")setView("admin");
+      else if(h==="#form")setView("form");
+      else setView("landing");
+    };
+    onHash();
+    window.addEventListener("hashchange",onHash);
+    return()=>{
+      window.removeEventListener("hashchange",onHash);
+      if(unsub)unsub();
+      if(unsubCfg)unsubCfg();
+      if(unsubAg)unsubAg();
+      if(unsubAuth)unsubAuth();
+    };
+  },[]);
+
+  const saveCfg=async c=>{setCfg(c);await tStore(c);};
+  const addReg=async r=>{
+    const reg={...r,ts:new Date().toISOString()};
+    if(window.__firebase){
+      return await window.__firebase.addReg(reg);
+    }
+    return reg;
+  };
+  const deleteReg=async id=>{
+    if(window.__firebase)await window.__firebase.deleteReg(id);
+  };
+  const addAgendamiento=async ag=>{
+    if(window.__firebase)return await window.__firebase.addAgendamiento(ag);
+  };
+  const deleteAgendamiento=async id=>{
+    if(window.__firebase)await window.__firebase.deleteAgendamiento(id);
+  };
+  const updateAgendamiento=async(id,data)=>{
+    if(window.__firebase)await window.__firebase.updateAgendamiento(id,data);
+  };
+  const updateReg=async r=>{
+    const {id,...data}=r;
+    setRegs(prev=>prev.map(x=>x.id===id?{...x,...data}:x));
+    if(window.__firebase)await window.__firebase.updateReg(id,data);
+  };
+  const nav=v=>{
+    window.location.hash=v==="form"?"form":v==="admin"?"admin":"";
+    setView(v);
+  };
+  const handleSignOut=async()=>{
+    if(window.__firebase)await window.__firebase.signOut();
+    // onAuthChanged se encargará de setAuthed(false) y redirigir
+  };
+
+  if(!ready||!cfg)return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"Plus Jakarta Sans,sans-serif",color:"#8880AA",background:"#FAF8FF"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:36,marginBottom:12}}>🎊</div>
+        <p>Cargando...</p>
+        <p style={{fontSize:12,marginTop:8,color:"#C4BEDB"}}>Conectando con Firebase...</p>
+      </div>
+    </div>
+  );
+
+  const giftCounts={};
+  regs.forEach(r=>{if(r.regalo)giftCounts[r.regalo]=(giftCounts[r.regalo]||0)+1;});
+
+  if(view==="admin"&&!authed)return <AdminLogin cfg={cfg} nav={nav}/>;
+
+  return(
+    <>
+      <style>{`*{box-sizing:border-box;margin:0;padding:0;}html,body{background:${cfg.bgColor};min-height:100vh;}input:focus,textarea:focus{border-color:${cfg.primaryColor}!important;box-shadow:0 0 0 3px ${cfg.primaryColor}18!important;}`}</style>
+      {view==="landing"&&<Landing cfg={cfg} nav={nav} regs={regs}/>}
+      {view==="form"&&<GuestForm cfg={cfg} giftCounts={giftCounts} addReg={addReg} nav={nav} regs={regs}/>}
+      {view==="admin"&&authed&&<AdminPanel cfg={cfg} regs={regs} giftCounts={giftCounts} saveCfg={saveCfg} nav={nav} signOut={handleSignOut} deleteReg={deleteReg} updateReg={updateReg} agendamientos={agendamientos} addAgendamiento={addAgendamiento} deleteAgendamiento={deleteAgendamiento} updateAgendamiento={updateAgendamiento}/>}
+    </>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>
