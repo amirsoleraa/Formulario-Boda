@@ -1789,28 +1789,6 @@ function StatsTab({regs,cfg,giftCounts,setModal,deleteReg,updateReg,apc,addAgend
         </div>
       )}
 
-      {/* Modal edición nombre en mobile */}
-      {editModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:99999,padding:"0 0 0 0",animation:"fadeIn .18s ease"}}>
-          <div style={{background:"#FFF",borderRadius:"24px 24px 0 0",padding:"28px 24px 32px",width:"100%",maxWidth:520,boxShadow:"0 -8px 40px rgba(123,108,246,.18)",animation:"fadeInUp .22s ease"}}>
-            <div style={{width:36,height:4,background:"#E4DFF5",borderRadius:4,margin:"0 auto 20px"}}/>
-            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:4}}>✏️ Editar nombre</h3>
-            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:16}}>Escribe el nuevo nombre del regalo</p>
-            <input
-              autoFocus
-              value={editModal.name}
-              onChange={e=>setEditModal(m=>({...m,name:e.target.value}))}
-              onKeyDown={e=>e.key==="Enter"&&confirmEdit()}
-              style={{...inp(),color:"#1A1535",fontSize:16,marginBottom:16}}/>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={confirmEdit} disabled={!editModal.name.trim()} style={{flex:1,background:editModal.name.trim()?`linear-gradient(135deg,${apc},${apc}BB)`:"#EDE9F8",color:editModal.name.trim()?"#FFF":"#C4BEDB",border:"none",padding:"14px",borderRadius:13,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:800,cursor:editModal.name.trim()?"pointer":"not-allowed",transition:"all .2s"}}>
-                Guardar
-              </button>
-              <button onClick={()=>setEditModal(null)} style={{...ghostBtn(),padding:"14px 20px"}}>Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
       {confirmDel&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
           <div style={{background:"#FFF",borderRadius:18,padding:"28px 26px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
@@ -1959,6 +1937,28 @@ function GiftsTab({cfg,saveCfg,giftCounts,apc,setTabDirty}){
       </div>
       <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,color:"#8880AA",marginTop:12}}>💡 Número izquierdo = escogidos · Número derecho = disponibles (editable)</p>
 
+      {/* Modal edición nombre en mobile */}
+      {editModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:99999,animation:"fadeIn .18s ease"}}>
+          <div style={{background:"#FFF",borderRadius:"24px 24px 0 0",padding:"28px 24px 32px",width:"100%",maxWidth:520,boxShadow:"0 -8px 40px rgba(123,108,246,.18)",animation:"fadeInUp .22s ease"}}>
+            <div style={{width:36,height:4,background:"#E4DFF5",borderRadius:4,margin:"0 auto 20px"}}/>
+            <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:4}}>✏️ Editar nombre</h3>
+            <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:16}}>Escribe el nuevo nombre del regalo</p>
+            <input
+              autoFocus
+              value={editModal.name}
+              onChange={e=>setEditModal(m=>({...m,name:e.target.value}))}
+              onKeyDown={e=>e.key==="Enter"&&confirmEdit()}
+              style={{...inp(),color:"#1A1535",fontSize:16,marginBottom:16}}/>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={confirmEdit} disabled={!editModal.name.trim()} style={{flex:1,background:editModal.name.trim()?`linear-gradient(135deg,${apc},${apc}BB)`:"#EDE9F8",color:editModal.name.trim()?"#FFF":"#C4BEDB",border:"none",padding:"14px",borderRadius:13,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:800,cursor:editModal.name.trim()?"pointer":"not-allowed",transition:"all .2s"}}>
+                Guardar
+              </button>
+              <button onClick={()=>setEditModal(null)} style={{...ghostBtn(),padding:"14px 20px"}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmDel&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
           <div style={{background:"#FFF",borderRadius:18,padding:"28px 26px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
