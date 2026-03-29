@@ -199,18 +199,31 @@
     .subtab-scroll{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
     .subtab-scroll::-webkit-scrollbar{display:none;}
     .subtab-scroll button{flex-shrink:0;}
-    html,body{min-height:100vh;font-family:'Plus Jakarta Sans',sans-serif;touch-action:pan-x pan-y;}
+    html,body{min-height:100vh;font-family:'Plus Jakarta Sans',sans-serif;touch-action:pan-x pan-y;user-select:none;-webkit-user-select:none;}
+    html{touch-action:manipulation;}
     #root{min-height:100vh;}
     ::-webkit-scrollbar{width:5px;}
     ::-webkit-scrollbar-thumb{background:#D4CEEE;border-radius:3px;}
   </style>
   <script>
+    // Bloquear zoom por gestos (Safari)
     document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
     document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
     document.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
+    // Bloquear zoom por doble tap y pinch (todos los navegadores)
+    document.addEventListener('touchstart',e=>{
+      if(e.touches&&e.touches.length>1){e.preventDefault();}
+    },{passive:false});
     document.addEventListener('touchmove',e=>{
       if(e.touches&&e.touches.length>1){e.preventDefault();}
-      else if(e.scale&&e.scale!==1){e.preventDefault();}
+      if(e.scale&&e.scale!==1){e.preventDefault();}
+    },{passive:false});
+    // Bloquear doble tap que hace zoom en iOS/Android
+    let lastTap=0;
+    document.addEventListener('touchend',e=>{
+      const now=Date.now();
+      if(now-lastTap<300){e.preventDefault();}
+      lastTap=now;
     },{passive:false});
   </script>
 </head>
