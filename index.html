@@ -1041,15 +1041,16 @@ function AdminPanel({cfg,regs,giftCounts,saveCfg,nav,signOut,deleteReg,updateReg
         }
         /* ── Sticky scroll header ── */
         .adm-sticky-hdr{
-          position:fixed;top:0;left:244px;right:0;z-index:45;
-          background:rgba(255,255,255,0.93);
-          backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-          border-bottom:1px solid rgba(228,223,245,0.75);
-          box-shadow:0 4px 24px rgba(123,108,246,.10);
-          padding:10px 28px;
-          transition:transform .3s cubic-bezier(.22,.68,0,1.15),opacity .25s ease;
+          position:fixed;top:14px;left:278px;right:18px;z-index:45;
+          background:rgba(255,255,255,0.96);
+          backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+          border:1px solid rgba(228,223,245,0.85);
+          border-radius:20px;
+          box-shadow:0 8px 32px rgba(123,108,246,.13),0 2px 8px rgba(0,0,0,.05);
+          padding:10px 16px;
+          transition:transform .32s cubic-bezier(.22,.68,0,1.15),opacity .25s ease;
         }
-        .adm-sticky-hdr--hidden{transform:translateY(-110%);opacity:0;pointer-events:none;}
+        .adm-sticky-hdr--hidden{transform:translateY(-130%);opacity:0;pointer-events:none;}
         .adm-sticky-hdr--visible{transform:translateY(0);opacity:1;pointer-events:auto;}
         .sticky-stats-row{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
         .sticky-stats-row::-webkit-scrollbar{display:none;}
@@ -1075,16 +1076,18 @@ function AdminPanel({cfg,regs,giftCounts,saveCfg,nav,signOut,deleteReg,updateReg
             padding:5px 8px;gap:2px;z-index:1000;
             width:calc(100vw - 28px);max-width:390px;
           }
-          .adm-sticky-hdr{left:0!important;padding:8px 14px!important;}
+          .adm-sticky-hdr{left:10px!important;right:10px!important;top:10px!important;padding:8px 12px!important;border-radius:16px!important;}
           .sticky-stat-label{display:none!important;}
-          .sticky-reg-title{font-size:14px!important;}
-          .sticky-reg-badge{font-size:10px!important;padding:2px 8px!important;}
-          .sticky-stat-chip{padding:4px 8px!important;gap:4px!important;}
-          .sticky-stat-num{font-size:14px!important;}
+          .sticky-reg-title{font-size:13px!important;}
+          .sticky-reg-badge{font-size:10px!important;padding:2px 7px!important;}
+          .sticky-stat-chip{padding:3px 7px!important;gap:3px!important;}
+          .sticky-stat-num{font-size:13px!important;}
           .sticky-gift-label{font-size:9px!important;}
-          .sticky-gift-num{font-size:16px!important;}
-          .sticky-gift-chip{padding:5px 10px!important;}
-          .sticky-other-title{font-size:15px!important;}
+          .sticky-gift-num{font-size:15px!important;}
+          .sticky-gift-chip{padding:4px 9px!important;}
+          .sticky-other-title{font-size:14px!important;}
+          .sticky-bell-btn{padding:5px 6px!important;font-size:14px!important;border-radius:9px!important;}
+          .sticky-bell-badge{width:14px!important;height:14px!important;font-size:8px!important;top:-4px!important;right:-4px!important;}
         }
       `}</style>
 
@@ -1250,7 +1253,7 @@ function AdminPanel({cfg,regs,giftCounts,saveCfg,nav,signOut,deleteReg,updateReg
 
           {/* ── Campanita ── */}
           <div style={{position:"relative",flexShrink:0,marginLeft:8}}>
-            <button onClick={()=>setShowNotifPanel(p=>!p)} className={bellPulse?"bell-pulse":""} style={{
+            <button onClick={()=>setShowNotifPanel(p=>!p)} className={`sticky-bell-btn${bellPulse?" bell-pulse":""}`} style={{
               background:showNotifPanel?`${apc}20`:`${apc}10`,
               border:`1px solid ${showNotifPanel?`${apc}50`:`${apc}25`}`,
               cursor:"pointer",fontSize:17,padding:"8px 10px",borderRadius:12,
@@ -1258,7 +1261,7 @@ function AdminPanel({cfg,regs,giftCounts,saveCfg,nav,signOut,deleteReg,updateReg
             }}>
               🔔
               {!showNotifPanel&&totalBadge>0&&(
-                <span style={{position:"absolute",top:-5,right:-5,background:"#E55B5B",color:"#FFF",borderRadius:"50%",width:17,height:17,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Plus Jakarta Sans,sans-serif",border:"2px solid #FFF"}}>{totalBadge}</span>
+                <span className="sticky-bell-badge" style={{position:"absolute",top:-5,right:-5,background:"#E55B5B",color:"#FFF",borderRadius:"50%",width:17,height:17,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Plus Jakarta Sans,sans-serif",border:"2px solid #FFF"}}>{totalBadge}</span>
               )}
             </button>
           </div>
