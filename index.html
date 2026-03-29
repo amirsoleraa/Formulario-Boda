@@ -196,6 +196,9 @@
     .card-hover{transition:box-shadow .2s ease,transform .2s ease}
     .card-hover:hover{box-shadow:0 8px 32px rgba(123,108,246,.13)!important;transform:translateY(-1px)}
     .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 20px;}
+    .subtab-scroll{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
+    .subtab-scroll::-webkit-scrollbar{display:none;}
+    .subtab-scroll button{flex-shrink:0;}
     html,body{min-height:100vh;font-family:'Plus Jakarta Sans',sans-serif;touch-action:pan-x pan-y;}
     #root{min-height:100vh;}
     ::-webkit-scrollbar{width:5px;}
@@ -2251,7 +2254,7 @@ function DesignTab({cfg,saveCfg,apc,setTabDirty}){
 
   return(
     <div>
-      <div style={{display:"flex",gap:4,marginBottom:20,background:"#F0EDF8",borderRadius:14,padding:5,width:"fit-content",boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
+      <div className="subtab-scroll" style={{marginBottom:20,background:"#F0EDF8",borderRadius:14,padding:5,boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
         {subs.map(s=>(
           <button key={s.id} onClick={()=>setSub(s.id)} style={{
             padding:"8px 18px",borderRadius:10,border:"none",cursor:"pointer",
@@ -2261,7 +2264,8 @@ function DesignTab({cfg,saveCfg,apc,setTabDirty}){
             boxShadow:sub===s.id?"0 2px 8px rgba(123,108,246,.14)":"none",
             transition:"all .22s cubic-bezier(.22,.68,0,1.2)",
             transform:sub===s.id?"scale(1.02)":"scale(1)",
-            letterSpacing:sub===s.id?".01em":".02em"
+            letterSpacing:sub===s.id?".01em":".02em",
+            whiteSpace:"nowrap"
           }}>{s.label}</button>
         ))}
       </div>
@@ -2677,7 +2681,7 @@ function ConfigTab({cfg,saveCfg,apc,aac,setTabDirty,agendamientos,addAgendamient
 
   return(
     <div>
-      <div style={{display:"flex",gap:4,marginBottom:20,background:"#F0EDF8",borderRadius:14,padding:5,flexWrap:"wrap",boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
+      <div className="subtab-scroll" style={{marginBottom:20,background:"#F0EDF8",borderRadius:14,padding:5,boxShadow:"inset 0 1px 3px rgba(123,108,246,.08)"}}>
         {subs.map(s=>(
           <button key={s.id} onClick={()=>setSub(s.id)} style={{
             padding:"8px 18px",borderRadius:10,border:"none",cursor:"pointer",
@@ -2687,7 +2691,8 @@ function ConfigTab({cfg,saveCfg,apc,aac,setTabDirty,agendamientos,addAgendamient
             boxShadow:sub===s.id?"0 2px 8px rgba(123,108,246,.14)":"none",
             transition:"all .22s cubic-bezier(.22,.68,0,1.2)",
             transform:sub===s.id?"scale(1.02)":"scale(1)",
-            letterSpacing:sub===s.id?".01em":".02em"
+            letterSpacing:sub===s.id?".01em":".02em",
+            whiteSpace:"nowrap"
           }}>{s.label}</button>
         ))}
       </div>
