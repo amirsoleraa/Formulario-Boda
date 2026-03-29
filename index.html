@@ -1856,7 +1856,10 @@ function GiftsTab({cfg,saveCfg,giftCounts,apc,setTabDirty}){
         {filtered.map(g=>{
           const used=giftCounts[g.id]||0,exh=used>=g.qty&&g.qty>0;
           return(
-            <div key={g.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",background:exh?"#FFF5F5":"#FDFBFF",borderRadius:11,border:`1px solid ${exh?"#F8D7D7":"#EDE9F8"}`}}>
+            <div key={g.id}
+              onMouseEnter={e=>{if(!exh){e.currentTarget.style.transform="scale(1.013) translateY(-1px)";e.currentTarget.style.boxShadow=`0 4px 16px ${apc}22`;e.currentTarget.style.background="#F5F2FF";e.currentTarget.style.borderColor=apc+"44";}}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="scale(1) translateY(0)";e.currentTarget.style.boxShadow="none";e.currentTarget.style.background=exh?"#FFF5F5":"#FDFBFF";e.currentTarget.style.borderColor=exh?"#F8D7D7":"#EDE9F8";}}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",background:exh?"#FFF5F5":"#FDFBFF",borderRadius:11,border:`1px solid ${exh?"#F8D7D7":"#EDE9F8"}`,transition:"transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease",cursor:"default"}}>
               <DraftInput value={g.name} onChange={v=>upName(g.id,v)} style={{flex:1,border:"none",background:"transparent",fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:600,color:"#1A1535",outline:"none"}}/>
               <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:12,fontWeight:800,color:used>0?(exh?"#E55B5B":"#3DAB7A"):"#C4BEDB",minWidth:42,textAlign:"right"}}>{used}/{g.qty}</span>
               <input type="number" value={g.qty} min={0} onChange={e=>upQty(g.id,e.target.value)} style={{width:60,padding:"6px 8px",textAlign:"center",border:"1.5px solid #E4DFF5",borderRadius:8,fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:700,outline:"none"}}/>
