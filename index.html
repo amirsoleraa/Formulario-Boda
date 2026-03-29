@@ -351,11 +351,12 @@ function Dropdown({options,value,onChange,placeholder="Selecciona una opción",p
         <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:"#FFF",border:`2px solid ${primaryColor}`,borderRadius:13,boxShadow:"0 12px 40px rgba(123,108,246,.16)",zIndex:9999,overflow:"hidden",maxHeight:290,overflowY:"auto",animation:"scaleIn .18s ease"}}>
           {options.map((opt,i)=>{
             const isHov=hov===opt.id&&!opt.exhausted;
+            const isGiftHov=isHov&&showQty;
             return(
               <div key={opt.id}
                 onMouseEnter={()=>setHov(opt.id)} onMouseLeave={()=>setHov(null)}
                 onClick={()=>{if(!opt.exhausted){onChange(opt.id);setOpen(false);}}}
-                style={{padding:"10px 14px",cursor:opt.exhausted?"not-allowed":"pointer",borderBottom:i<options.length-1?"1px solid #F3F0FB":"none",background:isHov?"#F0EDF8":value===opt.id?`${primaryColor}10`:"#FFF",borderRadius:isHov?8:0,margin:isHov?"2px 4px":"0",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"background .08s, border-radius .08s"}}>
+                style={{padding:"10px 14px",cursor:opt.exhausted?"not-allowed":"pointer",borderBottom:i<options.length-1?"1px solid #F3F0FB":"none",background:isGiftHov?`${primaryColor}0D`:isHov?"#F0EDF8":value===opt.id?`${primaryColor}10`:"#FFF",borderRadius:isHov?10:0,margin:isHov?"2px 4px":"0",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"background .18s ease, border-radius .18s ease, transform .18s ease, box-shadow .18s ease",transform:isGiftHov?"scale(1.013) translateY(-1px)":"scale(1) translateY(0)",boxShadow:isGiftHov?`0 4px 16px ${primaryColor}20`:"none",position:"relative",zIndex:isGiftHov?2:1}}>
                 <span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:14,fontWeight:value===opt.id?700:opt.exhausted?400:500,color:opt.exhausted?"#C8C4D4":(opt.color||"#333"),textDecoration:opt.exhausted?"line-through":"none"}}>
                   {opt.label}
                 </span>
