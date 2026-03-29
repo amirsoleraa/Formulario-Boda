@@ -9,6 +9,51 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- ================================================================
+    🔐 CONFIGURACIÓN DE FIREBASE
+    ================================================================
+    IMPORTANTE — SEGURIDAD:
+    La API key de Firebase es visible en el HTML porque este archivo
+    se sirve al navegador. Esto es NORMAL en Firebase (no es como una
+    clave de servidor), PERO debes proteger tus datos con las Reglas
+    de Firestore. Sigue estos pasos:
+
+    1. Ve a Firebase Console → Firestore Database → "Reglas"
+    2. Reemplaza las reglas con el siguiente bloque:
+
+       rules_version = '2';
+       service cloud.firestore {
+         match /databases/{database}/documents {
+
+           // Config: solo admin autenticado puede leer/escribir
+           match /rsvp/config {
+             allow read, write: if request.auth != null;
+           }
+
+           // Registros: cualquiera puede crear (invitados),
+           // pero solo admin autenticado puede leer/editar/borrar
+           match /registros/{id} {
+             allow create: if true;
+             allow read, update, delete: if request.auth != null;
+           }
+
+           // Agendamientos: solo admin autenticado
+           match /agendamientos/{id} {
+             allow read, write: if request.auth != null;
+           }
+         }
+       }
+
+    3. Haz clic en "Publicar".
+
+    Además, en Firebase Console → Authentication → Settings →
+    "Dominios autorizados", agrega SOLO el dominio donde alojes
+    este archivo (ej: tudominio.com). Elimina cualquier dominio
+    que no uses.
+
+    Con estas reglas, aunque alguien vea la API key, no podrá
+    leer ni modificar los datos sin estar autenticado como admin.
+    ================================================================ -->
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -16,7 +61,9 @@
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     // ══════════════════════════════════════════════════════════════════
-    // 🔥 CONFIGURA AQUÍ TUS DATOS DE FIREBASE (ver instrucciones abajo)
+    // 🔥 CONFIGURA AQUÍ TUS DATOS DE FIREBASE
+    // Reemplaza los valores con los de tu propio proyecto Firebase.
+    // Lee el bloque de SEGURIDAD arriba antes de publicar.
     // ══════════════════════════════════════════════════════════════════
     const firebaseConfig = {
       apiKey: "AIzaSyCHEV2tl8p7g9BPfR2YHJUBNJE56fcvLY0",
