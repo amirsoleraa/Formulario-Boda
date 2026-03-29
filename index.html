@@ -1939,9 +1939,8 @@ function GiftsTab({cfg,saveCfg,giftCounts,apc,setTabDirty}){
 
       {/* Modal edición nombre en mobile */}
       {editModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:99999,animation:"fadeIn .18s ease"}}>
-          <div style={{background:"#FFF",borderRadius:"24px 24px 0 0",padding:"28px 24px 32px",width:"100%",maxWidth:520,boxShadow:"0 -8px 40px rgba(123,108,246,.18)",animation:"fadeInUp .22s ease"}}>
-            <div style={{width:36,height:4,background:"#E4DFF5",borderRadius:4,margin:"0 auto 20px"}}/>
+        <div style={{position:"fixed",inset:0,background:"rgba(26,21,53,.55)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:99999,padding:"60px 16px 0",animation:"fadeIn .18s ease"}}>
+          <div style={{background:"#FFF",borderRadius:24,padding:"28px 24px",width:"100%",maxWidth:480,boxShadow:"0 8px 40px rgba(123,108,246,.22)",animation:"fadeInDown .22s ease"}}>
             <h3 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,color:"#1A1535",marginBottom:4}}>✏️ Editar nombre</h3>
             <p style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:13,color:"#8880AA",marginBottom:16}}>Escribe el nuevo nombre del regalo</p>
             <input
