@@ -368,23 +368,34 @@ const dangerBtn = {
 function Dropdown({options,value,onChange,placeholder="Selecciona una opción",primaryColor="#7B6CF6",showQty=false}){
   const [open,setOpen]=useState(false);
   const [hov,setHov]=useState(null);
+  const [openUp,setOpenUp]=useState(false);
   const ref=useRef(null);
+  const triggerRef=useRef(null);
   useEffect(()=>{
     const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
     document.addEventListener("mousedown",h);
     return()=>document.removeEventListener("mousedown",h);
   },[]);
+  const handleToggle=()=>{
+    if(!open&&triggerRef.current){
+      const rect=triggerRef.current.getBoundingClientRect();
+      const spaceBelow=window.innerHeight-rect.bottom;
+      const spaceNeeded=Math.min(options.length*46+16,290);
+      setOpenUp(spaceBelow<spaceNeeded&&rect.top>spaceNeeded);
+    }
+    setOpen(p=>!p);
+  };
   const sel=options.find(o=>o.id===value);
   return (
     <div ref={ref} style={{position:"relative",userSelect:"none"}}>
-      <div onClick={()=>setOpen(p=>!p)} style={{padding:"12px 15px",border:`2px solid ${open?primaryColor:"#E4DFF5"}`,borderRadius:13,cursor:"pointer",background:"#FFF",display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:50,transition:"all .2s",boxShadow:open?`0 0 0 3px ${primaryColor}18`:"none"}}>
+      <div ref={triggerRef} onClick={handleToggle} style={{padding:"12px 15px",border:`2px solid ${open?primaryColor:"#E4DFF5"}`,borderRadius:13,cursor:"pointer",background:"#FFF",display:"flex",justifyContent:"space-between",alignItems:"center",minHeight:50,transition:"all .2s",boxShadow:open?`0 0 0 3px ${primaryColor}18`:"none"}}>
         {sel?<span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,fontWeight:700,color:sel.color||"#333"}}>{sel.label}</span>:<span style={{fontFamily:"Plus Jakarta Sans,sans-serif",fontSize:15,color:"#C4BEDB"}}>{placeholder}</span>}
         <svg width={11} height={11} viewBox="0 0 12 12" style={{transform:open?"rotate(180deg)":"none",transition:"transform .2s",flexShrink:0,marginLeft:8}}>
           <path d="M1 3l5 5 5-5" stroke={primaryColor} strokeWidth={2} fill="none" strokeLinecap="round"/>
         </svg>
       </div>
       {open&&(
-        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:"#FFF",border:`2px solid ${primaryColor}`,borderRadius:13,boxShadow:"0 12px 40px rgba(123,108,246,.16)",zIndex:9999,overflow:"hidden",maxHeight:290,overflowY:"auto",animation:"scaleIn .18s ease"}}>
+        <div style={{position:"absolute",...(openUp?{bottom:"calc(100% + 6px)"}:{top:"calc(100% + 6px)"}),left:0,right:0,background:"#FFF",border:`2px solid ${primaryColor}`,borderRadius:13,boxShadow:openUp?"0 -12px 40px rgba(123,108,246,.16)":"0 12px 40px rgba(123,108,246,.16)",zIndex:9999,overflow:"hidden",maxHeight:290,overflowY:"auto",animation:"scaleIn .18s ease"}}>
           {options.map((opt,i)=>{
             const isHov=hov===opt.id&&!opt.exhausted;
             const isGiftHov=isHov&&showQty;
